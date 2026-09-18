@@ -96,6 +96,8 @@ The build is a different question, and it is enforced rather than asserted:
 
 ```sh
 python3 tools/licence-audit.py --check      # exit 1 if copyleft ships
+python3 tools/ship-gate.py --repo .       # exit 1 on secrets, weights, August dates in ANY blob of history
+python3 tools/ship-gate.py --stage <dir>  # the full release gate: every licence class, attribution, CVEs, trademarks
 ```
 
 The audit reads the install manifests of images that were **actually built** — ground
