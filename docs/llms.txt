@@ -1,0 +1,32 @@
+# SyMoNsAyLeaRn
+
+> An inference runtime you run on your own hardware: one GPU, one host, three loopback ports, a public wire dialect (the Messages dialect) on the front. Proprietary, source-available (FSL-1.1-ALv2; Apache-2.0 two years after each release). Licensor SymonSaysLLC.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md): units and ports, the wire contract and why it is not proprietary, the gateway by example, the engine and the substitution on record, packaging, licence position
+- [Getting started](docs/getting_started.md): install from a verified release or from source; first request; what must exist before the chat unit answers
+- [HTTP API](docs/http_api.md): every route of the Messages dialect as served here, credential, error envelope, model rows and the family-tier field, streaming events
+- [Command line](docs/cli.md): symoneural-gateway, the bring-up ladder, the image launcher, ship gate, release cutter, installer, benchmark, licence audit
+- [Configuration](config/README.md): the rule for config/, and symoneural-learn.env.example — every SYM_* variable with default and reason
+- [Monitoring](docs/monitoring.md): /health, /ready, /version, request ids, rack view, logs
+- [Performance](docs/performance.md): measured numbers on the reference host and how they were taken
+- [Security](docs/security.md): credential model, loopback by design, what never enters a repository, the ship gate
+- [Troubleshooting](docs/troubleshooting.md): traps already paid for — symptom, cause, fix
+- [Releases](docs/releases.md): staging, gating, cutting; asset naming per architecture; the installer
+- [Build](BUILD.md): prerequisites, host build, hardware profiles, models are not shipped, the image build, traps
+- [Gateway internals](gateway/gateway.md): endpoint register with evidence, credential model, module map
+- [Runtime bring-up](runtime/runtime.md): the chat unit's launcher and ladder
+
+## Wire contract
+
+- Base URL: http://127.0.0.1:9001 (loopback; public reach is the operator's edge proxy)
+- Credential: `x-api-key: <key>` or `Authorization: Bearer <key>`; the key lives in the file SYM_GW_KEY_FILE names
+- Routes: GET /health (public), GET /ready, GET /version, GET /v1/models, GET /v1/models/{id}, POST /v1/messages (stream: true for server-sent events), POST /v1/messages/count_tokens
+- Models: symon-chat (tier sonnet), symon-coder (tier opus), symon-work (tier fable); each row carries the family-tier field
+- Errors: {"type":"error","error":{"type":"...","message":"..."}} with the dialect's type strings
+
+## Optional
+
+- [Licence](LICENSE), [NOTICE](NOTICE)
+- [Recipes](recipes/recipes-learn/recipes-learn.md): OpenEmbedded packaging inside the estate's layer
