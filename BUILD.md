@@ -50,11 +50,11 @@ the operator's tunnel, never by binding an interface.
 Quote these as the known-good configuration, not as requirements:
 
 ```
-CPU     Intel i9-10900KF, 10c/20t, AVX2 + FMA, NO AVX-512, NO AMX
+CPU     x86-64, 10c/20t, AVX2 + FMA, NO AVX-512, NO AMX
 GPU     a 16 GB card, compute capability 12.0 (sm_120), 15.56 GiB usable
 Driver  615.71.09 (open kernel module), CUDA UMD 13.4, nvcc 13.4.92
 RAM     94 GiB
-OS      Debian 13 (trixie), kernel 7.1.13
+OS      Linux, glibc 2.43, kernel 7.1.13
 ```
 
 ---
@@ -139,7 +139,7 @@ weights get onto the card. Read the profile that matches yours.
 
 ### 4.1 Compute capability 9.0 to 10.x (datacenter cards)
 
-The Triton mixture-of-experts path is available. Weights load in their packed form,
+The `triton_kernels` mixture-of-experts path is available. Weights load in their packed form,
 no repack, so peak memory during load is close to the checkpoint size.
 
 ```sh
@@ -148,7 +148,7 @@ SYM_GPU_FRACTION=0.90 SYM_MAX_MODEL_LEN=32768 work/runtimes/llm/hostrun/serve-ch
 
 ### 4.2 Compute capability 12.x (sm_120) — the reference host
 
-**The Triton path is excluded by an explicit range check**, measured in
+**The `triton_kernels` path is excluded by an explicit range check**, measured in
 `fused_moe/experts/gpt_oss_triton_kernels_moe.py`:
 
 ```python
@@ -199,10 +199,10 @@ throughput, and on a CPU without AVX-512 or AMX — like the reference host — 
 to be usable for batch work and not for interactive chat. **No tokens-per-second
 figure is quoted here because none was measured on this host.**
 
-### 4.5 AMD
+### 4.5 gfx9 and gfx1x cards
 
 Untested here. The engine's own device gate accepts gfx9 and gfx1x families, so the
-Triton path may be available where it is not on sm_120. Treat §4.1 as the starting
+`triton_kernels` path may be available where it is not on sm_120. Treat §4.1 as the starting
 point and measure rather than assuming.
 
 ---
@@ -314,8 +314,8 @@ module.
 not just that recipe, because BitBake parses every recipe on every build. A recipe
 that cannot be satisfied must still parse cleanly and fail in a task.
 
-**`pkill -f 'vllm serve'` matches the shell that runs it**, because the pattern is in
-that shell's own command line. Use `pkill -f '[v]llm serve'`.
+**`pkill -f 'foo serve'` matches the shell that runs it**, because the pattern is in
+that shell's own command line. Use `pkill -f '[f]oo serve'`.
 
 **A liveness probe that fires before the thing can be alive measures its own timing.**
 A bring-up check using `pgrep` five seconds in killed a rung that went on to load the

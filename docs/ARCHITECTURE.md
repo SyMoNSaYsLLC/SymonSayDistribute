@@ -191,7 +191,7 @@ notices, where a licence obliges us to record it. Weights live outside every rep
 are never packaged.
 
 **Direction (decided 2026-09-18, not yet built).** The engine and the backend move to Rust.
-The evaluation in the estate (`reports/rust-engine-eval-2026-09-18.md`) selected mistral.rs:
+The evaluation in the estate (`reports/rust-engine-eval-2026-09-18.md`) names the engine selected:
 it loads this checkpoint natively, keeps the MXFP4 experts 4-bit on the GPU, targets this
 card's compute capability, and serves `/v1/messages` itself — conditional on a one-line
 toolkit-version patch carried as a recipe patch. Its model list is chat-completions-shaped,

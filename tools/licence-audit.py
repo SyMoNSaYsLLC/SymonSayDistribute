@@ -347,7 +347,7 @@ def resolve_package(pkg: str, recipes: dict[str, dict]) -> tuple[str | None, str
     OpenEmbedded splits a recipe into several binary packages and debian.bbclass
     renames a library package (symoneural-llm -> libsymoneural-llm0). Both are
     handled by trying the exact name, then stripping known split suffixes, then
-    the debian shape. A name that survives all of that is UNRESOLVED, not
+    the renamed-library shape. A name that survives all of that is UNRESOLVED, not
     assumed clean.
     """
     if pkg in recipes:
@@ -377,9 +377,9 @@ def resolve_package(pkg: str, recipes: dict[str, dict]) -> tuple[str | None, str
     if m:
         for cand in (m.group(1), m.group(1)[3:]):
             if cand in recipes:
-                return cand, f"debian-renamed package of {cand}"
+                return cand, f"renamed library package of {cand}"
             if f"symoneural-{cand}" in recipes:
-                return f"symoneural-{cand}", f"debian-renamed package of symoneural-{cand}"
+                return f"symoneural-{cand}", f"renamed library package of symoneural-{cand}"
 
     if f"symoneural-{pkg}" in recipes:
         return f"symoneural-{pkg}", "symoneural- prefix added"
