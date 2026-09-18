@@ -1,13 +1,18 @@
-# symoneural_api
+# symoneural_gateway
 
-The estate's control plane and its client-facing dialect. Two **separate processes**
-are built from this one package, and confusing them is the mistake this document
-exists to prevent.
+The client-facing dialect. This package is the wheel that `pip install ./gateway`
+produces and that `symoneural-gateway` starts; this file is its published description,
+so it names what actually ships.
 
-| Process | Entry point | Binds | Serves | Status |
-|---|---|---|---|---|
-| Control plane | `symoneural_api.main:app` | `127.0.0.1:8800` | `/api/*` only | pre-existing, untouched |
-| Dialect gateway | `symoneural_api.gateway:app` | `127.0.0.1:9001` | root probes + `/v1/*` | added 2026-09-18 |
+| Process | Entry point | Binds | Serves |
+|---|---|---|---|
+| Dialect gateway | `symoneural_gateway.gateway:app` | `127.0.0.1:9001` | root probes + `/v1/*` |
+
+One process, one job. The estate that builds this repository also runs a separate
+control plane on `127.0.0.1:8800` serving `/api/*`; that process is not part of this
+package, is not installed by it, and is never started by it. Confusing the two is the
+mistake this document exists to prevent: a reader who expects `/api/*` here will not
+find it, and nothing in this wheel may bind 8800.
 
 `main.py` was not modified. R14 protects `127.0.0.1:8800` as read-only and
 demo-critical, so the dialect was added as its own application object with its own

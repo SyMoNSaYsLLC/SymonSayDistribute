@@ -38,9 +38,11 @@ the CUDA 13 runtime libraries for the GPU units, `curl`. For installing from a r
 need either an authenticated `gh` or a `GITHUB_TOKEN` — the repository is private.
 
 **Weights.** Acquire the checkpoint yourself and place it under `SYM_MODELS_DIR` as
-`symon-sonnet/` (a symlink to the checkpoint directory is fine). The runtime reads it from that
-path at start and never packages it. Its licence (Apache-2.0) and provenance are recorded in
-the estate's model register.
+`symon-chat/` (a symlink to the checkpoint directory is fine). The runtime reads it from that
+path at start and never packages it. That directory name is a filesystem path and is
+deliberately not one of the wire model ids: `SYM_CHAT_MODEL_DIR` points at the checkpoint on
+disk, while `symon-sonnet` and its siblings are what a client asks for. Its licence
+(Apache-2.0) and provenance are recorded in the estate's model register.
 
 **The credential.** Generate one key and store it where `SYM_GW_KEY_FILE` points, mode 0600:
 

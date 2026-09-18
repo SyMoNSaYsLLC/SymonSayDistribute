@@ -66,7 +66,7 @@ The fast path. Builds nothing that is not already source; starts three processes
 ### 3.1 The chat unit
 
 ```sh
-work/runtimes/llm/hostrun/bringup-chat-unit.sh
+runtime/bringup-chat-unit.sh
 ```
 
 This is a **ladder**, not one command, and §4 explains why. It tries configurations
@@ -93,8 +93,8 @@ mkdir -p -m 700 ~/.config/symoneural
 (umask 077; openssl rand -hex 32 | tr -d '\n' > ~/.config/symoneural/gateway-9001.key)
 chmod 600 ~/.config/symoneural/gateway-9001.key
 
-cd work/runtimes/api/app
-PYTHONPATH=$PWD python3 -m symoneural_api.gateway
+python3 -m pip install ./gateway     # installs the symoneural-gateway console script
+symoneural-gateway                  # or: PYTHONPATH=gateway python3 -m symoneural_gateway.gateway
 ```
 
 Unconfigured fails closed: with no key file, every authenticated route answers 500
@@ -103,7 +103,7 @@ naming the missing path. It does not default to open.
 ### 3.3 The web interface
 
 ```sh
-cd work/runtimes/web/app
+cd web
 pnpm install           # see §6: the framework is not acquired
 pnpm build
 pnpm start             # 127.0.0.1:8812
@@ -143,7 +143,7 @@ The `triton_kernels` mixture-of-experts path is available. Weights load in their
 no repack, so peak memory during load is close to the checkpoint size.
 
 ```sh
-SYM_GPU_FRACTION=0.90 SYM_MAX_MODEL_LEN=32768 work/runtimes/llm/hostrun/serve-chat-unit.sh
+SYM_GPU_FRACTION=0.90 SYM_MAX_MODEL_LEN=32768 runtime/serve-chat-unit.sh
 ```
 
 ### 4.2 Compute capability 12.x (sm_120) — the reference host
@@ -176,7 +176,7 @@ rung only changes the allocator and costs nothing. Working configuration:
 ```sh
 PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
 SYM_GPU_FRACTION=0.917 SYM_MAX_MODEL_LEN=16384 SYM_CPU_OFFLOAD_GB=3 \
-  work/runtimes/llm/hostrun/serve-chat-unit.sh
+  runtime/serve-chat-unit.sh
 ```
 
 Result: weights 10.5 GiB on card, KV cache 3.12 GiB, 108,294 tokens, 6.6x concurrency
@@ -265,11 +265,15 @@ the runtime installs from packages rather than from the tree it was developed in
 | `symoneural-image-learn` | the proof image |
 | `symoneural-learn-web` | the web interface — **blocked, see below** |
 
-Before editing any recipe, check no cooker is live and read the exit code directly:
+Before editing any recipe, check that no cooker is live and read the exit code directly.
+The guard is part of the estate that builds these recipes, not of this repository, so run
+it from the estate checkout:
 
 ```sh
-work/tools/edit-guard; rc=$?
+<estate>/work/tools/edit-guard; rc=$?
 ```
+
+Editing a recipe while a cooker holds the tree is how a change gets silently discarded.
 
 ### Barriers, recorded rather than worked around
 
