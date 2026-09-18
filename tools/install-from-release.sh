@@ -53,7 +53,7 @@ echo "machine: linux/$arch   release: $release   home: $home   dstdir: $dstdir"
 UNITS="gateway|wheel|symoneural_gateway-*-py3-none-any.whl|symoneural-gateway
 api|wheel|symoneural_api-*-py3-none-any.whl|symoneural-api
 llm|wheel|symoneural_llm-*-py3-none-any.whl|symoneural-llm
-hostrun|tar|symoneural-learn-hostrun-*-noarch.tar.gz|
+hostrun|tar|symoneural-learn-hostrun-*.tar.gz|
 image|binary|symoneural-image-cuda-*-linux-${arch}.tar.gz|symoneural-image
 api-native|binary|symoneural-api-native-*-linux-${arch}.tar.gz|"
 [ -n "$units" ] || units=$(echo "$UNITS" | cut -d'|' -f1 | tr '\n' ',' | sed 's/,$//')

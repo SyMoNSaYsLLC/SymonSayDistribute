@@ -56,22 +56,22 @@ while IFS= read -r f; do
   case "$base" in SHA256SUMS|RELEASE-NOTES.md|THIRD-PARTY-NOTICES.md|SHIP-GATE-REPORT.json|BUILD-RECORD.md|cargo-metadata.json) continue;; esac
   [ "$arch" = "$rest" ] && arch="noarch"
   case "$arch" in noarch|x86_64|aarch64|armv7|i686) ;; *) echo "   $rel: unknown arch dir '$arch' — stage layout is <unit>/<arch>/<file>"; exit 6;; esac
+  # An asset is published under its own basename. `gh release create file#text` sets
+  # the asset's LABEL, not its name — a rename here was silently ignored and v1.0.0
+  # published three assets under names the installer did not match, which failed with
+  # "no assets match the file pattern" after the release was already immutable.
+  # SHA256SUMS records basenames too, so basenames are the single naming authority and
+  # the stage is responsible for naming its files correctly.
   name=$base
-  case "$name" in
-    *.whl) ;;   # a wheel's own tag (py3-none-any / cp313-…-linux_x86_64) already states the arch; pip parses the name
-    *)
-      if ! printf '%s' "$name" | grep -q -E -- "-(noarch|linux-(x86_64|aarch64|armv7|i686))[.-]"; then
-        case "$name" in
-          *.tar.*) ext="tar.${name##*.}"; stem=${name%.tar.*};;
-          *)       ext=${name##*.};       stem=${name%.*};;
-        esac
-        if [ "$arch" = noarch ]; then name="${stem}-noarch.${ext}"; else name="${stem}-linux-${arch}.${ext}"; fi
-      fi;;
-  esac
-  ASSETS+=("$f#$name")
+  ASSETS+=("$f")
 done < <(find "$STAGE" -mindepth 2 -type f | sort)
-for extra in SHA256SUMS THIRD-PARTY-NOTICES.md SHIP-GATE-REPORT.json; do ASSETS+=("$STAGE/$extra#$extra"); done
-printf '   %s\n' "${ASSETS[@]#*#}"
+for extra in SHA256SUMS THIRD-PARTY-NOTICES.md SHIP-GATE-REPORT.json; do ASSETS+=("$STAGE/$extra"); done
+
+# Two files with the same basename cannot both be assets. GitHub rejects the second
+# only after the tag exists and the first assets have uploaded, so check here.
+dupes=$(printf '%s\n' "${ASSETS[@]##*/}" | sort | uniq -d)
+[ -z "$dupes" ] || { echo "   duplicate asset basenames — pack the trees first:"; printf '     %s\n' $dupes; exit 6; }
+printf '   %s\n' "${ASSETS[@]##*/}"
 
 echo "== 5. publish"
 if gh release view "$TAG" >/dev/null 2>&1; then echo "   release $TAG already exists — releases are immutable; bump the tag"; exit 7; fi
@@ -84,4 +84,13 @@ if ! git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
 fi
 "${CMD[@]}"; rc=$?
 [ $rc -eq 0 ] || { echo "   gh release create rc=$rc"; exit 8; }
-gh release view "$TAG" --json tagName,isLatest,assets --jq '{tag:.tagName, latest:.isLatest, assets:[.assets[].name]}'
+# `isLatest` is not a field every gh build exposes; asking for it makes this final
+# confirmation exit 1 AFTER the release has been created and every asset uploaded,
+# which reads as a failed cut when nothing failed. Ask only for fields that are
+# always present, and report the asset count and each asset's upload state, which is
+# what actually needs confirming.
+gh release view "$TAG" --json tagName,isDraft,isPrerelease,url,assets \
+  --jq '{tag:.tagName, draft:.isDraft, prerelease:.isPrerelease, url:.url,
+         assets:(.assets|length), pending:[.assets[]|select(.state!="uploaded")|.name]}'; rc=$?
+[ $rc -eq 0 ] || echo "   release created; the confirmation query failed rc=$rc — check the URL above"
+exit 0
