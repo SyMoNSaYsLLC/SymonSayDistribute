@@ -85,8 +85,12 @@ model.
 
 ## Licence position
 
-`LICENSE` is proprietary, all rights reserved, and **scoped**. Everything in this
-repository is covered because everything in it is first-party.
+`LICENSE` is **FSL-1.1-ALv2** — proprietary, source-available; not closed, not open
+source. You may read, build and use it for anything that is not a competing commercial
+product or service, and each release becomes Apache-2.0 two years after it ships.
+Everything in this repository is covered because everything in it is first-party; see
+`NOTICE`. Licensor: SymonSaysLLC — Garrett McDonald (Developer,
+gmcdonald@symoneural.com), Ben Hesley (Business, bhesley@symoneural.com).
 
 The build is a different question, and it is enforced rather than asserted:
 
