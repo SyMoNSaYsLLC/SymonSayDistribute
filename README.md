@@ -57,7 +57,23 @@ ready.
 3. Cut from it with the machinery on `workflow`. The first release proves the branch, and
    the gate decides whether it ships.
 
+## The other two repositories
+
+This is one of three, and the split is the same on disk as it is here.
+
+| Repository | Holds | Licence of what it ships |
+|---|---|---|
+| **`SymonSayDistribute`** | the runtimes, one branch each, each cutting its own releases | FSL-1.1-ALv2, and no copyleft |
+| `SymonSaySource` | what we build from: pins, licences, provenance — never the source bytes | tracking only; ships nothing |
+| `SymonSayOpen` | the copyleft builds | MIT metadata; the outputs stay copyleft |
+
+**Nothing from `SymonSayOpen` may be linked into a release here.** The ship gate fails on any
+strong copyleft component, so the rule is enforced rather than trusted — but enforcement is
+easier to believe when the two sides were never in the same tree.
+
 ## Licence
 
-Every branch ships under FSL-1.1-ALv2: source-available now, Apache-2.0 two years after
-each release. See the `LICENSE` file on any runtime branch.
+Every branch here ships under FSL-1.1-ALv2: source-available now, Apache-2.0 two years after
+each release. See the `LICENSE` file on any runtime branch. `SymonSayOpen` is deliberately
+MIT instead; different licences make the split a statement rather than a directory
+convention.
