@@ -24,6 +24,7 @@ to reach the other runtimes.
 | `release-notes.py` | writes `RELEASE-NOTES.md` from the gate report and the build records | — |
 | `cut-release.sh` | tags `<runtime>/v<version>` and publishes | the branch is not the runtime, the tree is dirty, the gate fails, or two assets collide |
 | `install-from-release.sh` | installs a runtime's latest release, verifying every asset first | a checksum does not match |
+| `lay-out-on-disk.sh` | lays a repository out as one directory per branch | — |
 | `verify-3p-path.sh` | exercises a live deployment end to end | any check fails |
 
 ## Why each refusal exists
@@ -53,14 +54,22 @@ ourselves; this is the latter, narrow enough to read in one sitting.
 
 A release belongs to a runtime and its tag names one:
 
-This branch is checked out as a worktree inside the runtime being released, so the machinery
-sits beside the source without ever being committed to it:
+Every branch of this repository is a directory on disk, laid out by `lay-out-on-disk.sh`, so
+the machinery sits beside the runtimes without ever being committed into one:
+
+```
+~/SymonSayDistribute/
+    main/                 the index
+    workflow/             this branch — the machinery
+    symoneural-learn/     a runtime
+```
+
+A release is cut from the runtime's directory, naming the machinery beside it:
 
 ```sh
-git clone --branch symoneural-learn <repo> && cd symoneural-learn
-git worktree add workflow workflow      # this branch, as a directory
-workflow/cut-release.sh symoneural-learn 1.4.0 ~/symoneural-release/v1.4.0 --dry-run
-workflow/cut-release.sh symoneural-learn 1.4.0 ~/symoneural-release/v1.4.0
+cd ~/SymonSayDistribute/symoneural-learn
+../workflow/cut-release.sh symoneural-learn 1.4.0 ~/symoneural-release/v1.4.0 --dry-run
+../workflow/cut-release.sh symoneural-learn 1.4.0 ~/symoneural-release/v1.4.0
 ```
 
 The cutter takes the runtime from the directory it is run in, not from where it lives: the
