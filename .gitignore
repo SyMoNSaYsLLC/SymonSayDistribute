@@ -1,0 +1,27 @@
+# Dependencies and build output. Regenerable; never committed.
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+__pycache__/
+*.pyc
+
+# Secrets: denied by pattern, not by discipline.
+*.env
+!*.env.example
+*.key
+*.pem
+credentials*
+secrets*
+
+# Weights never enter git, in any format or size.
+*.gguf
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.bin
+
+# Never a project-level agent config (rules 1.2).
+.claude/
