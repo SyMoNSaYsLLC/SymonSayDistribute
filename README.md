@@ -43,13 +43,13 @@ vendored here.
 ## Layout
 
 ```
-gateway/          the /v1 dialect: registry, credential, worker client
+gateway/          the /v1 dialect: registry, credential, worker client — pip-installable (pyproject.toml)
 web/              the interface, Next.js, source only
 runtime/          bring-up for the chat unit
-recipes/          the BitBake layer that packages all of it
-config/           client configuration, tracked rather than hand-set
-tools/            the licence audit
-docs/             what is not a directory document
+recipes/          the BitBake recipes that package all of it (they build inside the estate's layer)
+config/           the configuration contract (symoneural-learn.env.example) and reference clients
+tools/            the licence audit, the ship gate, the release cutter
+docs/             cross-cutting documents (empty today)
 ```
 
 Each directory carries its own document named after it.
