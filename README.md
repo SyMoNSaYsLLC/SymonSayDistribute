@@ -11,9 +11,9 @@ client  ->  127.0.0.1:9001   gateway      the /v1 dialect, the credential, the r
 
 | Model | Surface | Tier |
 |---|---|---|
-| `symon-chat` | Chat | sonnet |
-| `symon-coder` | Code | opus |
-| `symon-work` | Cowork | fable |
+| `symon-sonnet` | Chat | sonnet |
+| `symon-opus` | Code | opus |
+| `symon-fable` | Cowork | fable |
 
 ---
 
@@ -72,11 +72,11 @@ Two design facts follow from the dialect:
    dialect's family patterns **or** the row carries the family-tier field
    (`FAMILY_TIER_FIELD` in `models.py`), and ids that carry an upstream vendor's name are
    commonly dropped. So the upstream
-   checkpoint name is never exposed, and a first-party id such as `symon-chat` is selectable
+   checkpoint name is never exposed, and a first-party id such as `symon-sonnet` is selectable
    **only** because this gateway emits the tier field — a plain chat-completions model list
    cannot supply it. The field is a wire field, not a claim of equivalence to anyone's model.
-2. The three surfaces — chat, code, cowork — map to three model cards (`symon-chat`,
-   `symon-coder`, `symon-work`), one default per tier. Behind them runs one engine today,
+2. The three surfaces — chat, code, cowork — map to three model cards (`symon-sonnet`,
+   `symon-opus`, `symon-fable`), one default per tier. Behind them runs one engine today,
    reached through `SYM_CHAT_URL`; swapping it changes nothing above `worker.py`.
 
 Nothing in this runtime calls a third-party service. Inference runs on the operator's own

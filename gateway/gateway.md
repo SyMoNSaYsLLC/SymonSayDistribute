@@ -99,7 +99,7 @@ The gateway exists for what the engine cannot do:
    checkpoint's own name could never be offered. A row as this gateway emits it:
 
    ```json
-   {"id": "symon-chat", "type": "model", "display_name": "Symon Chat",
+   {"id": "symon-sonnet", "type": "model", "display_name": "Symon Chat",
     "anthropic_family_tier": "sonnet", "is_family_default": true}
    ```
 
@@ -130,9 +130,9 @@ not three engines.
 
 | id | Display | Tier | Surface | Worker |
 |---|---|---|---|---|
-| `symon-chat` | Symon Chat | sonnet | Chat | `chat` unit |
-| `symon-coder` | Symon Coder | opus | Code | `chat` unit |
-| `symon-work` | Symon Work | fable | Cowork | `chat` unit |
+| `symon-sonnet` | Symon Chat | sonnet | Chat | `chat` unit |
+| `symon-opus` | Symon Coder | opus | Code | `chat` unit |
+| `symon-fable` | Symon Work | fable | Cowork | `chat` unit |
 
 All three resolve to the same unit and the same weights today, and
 `GET /v1/models/{id}` says so in `x-symoneural.shares_weights_with` rather than
@@ -180,10 +180,10 @@ command's own output:
 | `GET /health`, no credential | `200 {"status":"ok"}` with `x-request-id` |
 | `GET /v1/models`, wrong credential | `401 authentication_error` |
 | `GET /v1/models?limit=1000`, `x-api-key` | `200`, three rows, each carrying the family-tier field |
-| `GET /v1/models/symon-coder` | `200` with `x-symoneural` provenance |
+| `GET /v1/models/symon-opus` | `200` with `x-symoneural` provenance |
 | `GET /v1/nope` | `404 not_found_error` in the dialect envelope |
 | `POST /v1/messages` with the upstream checkpoint's own name | `404`, refused by name |
-| **`POST /v1/messages`, the client probe shape** | **`200` in 0.365 s, `content` an array, `model` returned as `symon-chat`** |
+| **`POST /v1/messages`, the client probe shape** | **`200` in 0.365 s, `content` an array, `model` returned as `symon-sonnet`** |
 | `GET /ready` | `200 {"status":"ready"}` naming all three models |
 
 The last row of that table is the same request the client's Test button sends, so
@@ -213,7 +213,7 @@ POST http://localhost:9001/v1/messages
 authorization: Bearer <key>
 content-type: application/json
 
-{"model":"symon-chat","max_tokens":1,"messages":[{"role":"user","content":"."}]}
+{"model":"symon-sonnet","max_tokens":1,"messages":[{"role":"user","content":"."}]}
 ```
 
 and it requires a 2xx JSON body whose `content` is an **array**. It is a single

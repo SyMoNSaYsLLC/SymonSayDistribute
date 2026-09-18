@@ -38,7 +38,7 @@ the CUDA 13 runtime libraries for the GPU units, `curl`. For installing from a r
 need either an authenticated `gh` or a `GITHUB_TOKEN` — the repository is private.
 
 **Weights.** Acquire the checkpoint yourself and place it under `SYM_MODELS_DIR` as
-`symon-chat/` (a symlink to the checkpoint directory is fine). The runtime reads it from that
+`symon-sonnet/` (a symlink to the checkpoint directory is fine). The runtime reads it from that
 path at start and never packages it. Its licence (Apache-2.0) and provenance are recorded in
 the estate's model register.
 
@@ -111,11 +111,11 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:9001/health          #
 curl -s http://127.0.0.1:9001/v1/models -H "x-api-key: $(cat "$SYM_GW_KEY_FILE")" | python3 -m json.tool
 curl -s http://127.0.0.1:9001/v1/messages -H "x-api-key: $(cat "$SYM_GW_KEY_FILE")" \
   -H 'content-type: application/json' \
-  -d '{"model":"symon-chat","max_tokens":64,"messages":[{"role":"user","content":"In one sentence, what are you?"}]}'
+  -d '{"model":"symon-sonnet","max_tokens":64,"messages":[{"role":"user","content":"In one sentence, what are you?"}]}'
 ```
 
-Three model rows come back (`symon-chat`, `symon-coder`, `symon-work`), and the reply names
-`symon-chat` as its model. Any client that speaks the dialect works by pointing its base URL at
+Three model rows come back (`symon-sonnet`, `symon-opus`, `symon-fable`), and the reply names
+`symon-sonnet` as its model. Any client that speaks the dialect works by pointing its base URL at
 `http://127.0.0.1:9001` and supplying the key.
 
 ## Next steps

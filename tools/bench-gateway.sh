@@ -5,7 +5,7 @@
 #
 # bench-gateway — the measured numbers a release carries, taken through the gateway.
 #
-#   tools/bench-gateway.sh [--url http://127.0.0.1:9001] [--model symon-chat] [--duration 30s]
+#   tools/bench-gateway.sh [--url http://127.0.0.1:9001] [--model symon-sonnet] [--duration 30s]
 #                          [--workers 4] [--max-tokens 128] [--out DIR] [--quiet]
 #
 # Five stages, each timed and recorded, against the live gateway with the operator's key
@@ -19,7 +19,7 @@
 # Output: <out>/bench-<timestamp>.json (machine-readable) and .md (the table for release notes).
 # Nothing here changes the gateway or the engine; it is a client.
 set -o pipefail
-url=${SYM_GW_URL:-http://127.0.0.1:9001}; model=symon-chat; duration=30s; workers=4; max_tokens=128; out=${SYM_BENCH_OUT:-$PWD/bench}; quiet=0
+url=${SYM_GW_URL:-http://127.0.0.1:9001}; model=symon-sonnet; duration=30s; workers=4; max_tokens=128; out=${SYM_BENCH_OUT:-$PWD/bench}; quiet=0
 while (( $# )); do case "$1" in
   --url) url=$2; shift 2;; --model) model=$2; shift 2;; --duration) duration=$2; shift 2;; --workers) workers=$2; shift 2;;
   --max-tokens) max_tokens=$2; shift 2;; --out) out=$2; shift 2;; --quiet) quiet=1; shift;;

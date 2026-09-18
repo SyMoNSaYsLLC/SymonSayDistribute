@@ -52,7 +52,7 @@ curl -s http://127.0.0.1:9001/v1/models -H "x-api-key: $(cat "$SYM_GW_KEY_FILE")
 ```
 
 ```json
-{"type": "model", "id": "symon-chat", "display_name": "Symon Chat",
+{"type": "model", "id": "symon-sonnet", "display_name": "Symon Chat",
  "created_at": "2026-09-18T00:00:00Z",
  "description": "Quick questions and drafting, served from this host.",
  "anthropic_family_tier": "sonnet", "is_family_default": true,
@@ -63,9 +63,9 @@ Three cards, three tiers, one default per tier:
 
 | id | tier | surface | max output |
 |---|---|---|---|
-| `symon-chat` | sonnet | chat | 4096 |
-| `symon-coder` | opus | code | 8192 |
-| `symon-work` | fable | cowork | 8192 |
+| `symon-sonnet` | sonnet | chat | 4096 |
+| `symon-opus` | opus | code | 8192 |
+| `symon-fable` | fable | cowork | 8192 |
 
 Clients that implement the dialect filter this list: a row survives when its id matches one of
 the dialect's family patterns *or* carries the family-tier field. No `symon-*` id matches a
@@ -78,7 +78,7 @@ about equivalence to anyone else's model.
 ```json
 "x-symoneural": {"surface": "chat", "unit": "chat", "worker_model": "symon-ai",
   "upstream": "20B MXFP4 mixture-of-experts, 24 layers, 32 experts, 4 active; provenance in the estate model register",
-  "licence": "Apache-2.0", "shares_weights_with": ["symon-coder", "symon-work"]}
+  "licence": "Apache-2.0", "shares_weights_with": ["symon-opus", "symon-fable"]}
 ```
 
 Shared weights are stated, never inferred: today all three cards resolve to one engine.
@@ -88,11 +88,11 @@ Shared weights are stated, never inferred: today all three cards resolve to one 
 ```sh
 curl -s http://127.0.0.1:9001/v1/messages -H "x-api-key: $(cat "$SYM_GW_KEY_FILE")" \
   -H 'content-type: application/json' \
-  -d '{"model":"symon-chat","max_tokens":64,
+  -d '{"model":"symon-sonnet","max_tokens":64,
        "messages":[{"role":"user","content":"In one sentence, what are you?"}]}'
 ```
 
-The response is the dialect's message object with `"model": "symon-chat"` — the engine's own
+The response is the dialect's message object with `"model": "symon-sonnet"` — the engine's own
 name for the checkpoint never crosses this boundary. Sampling defaults from the model card
 (`temperature`, `top_p`, an output cap) apply only to fields the request left unset; an explicit
 value always wins. `max_tokens` above the card's cap is clamped to it.
@@ -122,7 +122,7 @@ Measured on the reference host: first event in 370 ms (see [Performance](perform
 ```sh
 curl -s http://127.0.0.1:9001/v1/messages/count_tokens -H "x-api-key: $(cat "$SYM_GW_KEY_FILE")" \
   -H 'content-type: application/json' \
-  -d '{"model":"symon-coder","messages":[{"role":"user","content":"hello"}]}'
+  -d '{"model":"symon-opus","messages":[{"role":"user","content":"hello"}]}'
 # {"input_tokens": 82}   ← the number includes the dialect's message framing
 ```
 

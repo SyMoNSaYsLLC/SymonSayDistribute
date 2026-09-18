@@ -57,7 +57,7 @@ symoneural-image --version                     # prints the worker's version and
 | Command | Does | Exit codes |
 |---|---|---|
 | `tools/install-from-release.sh [--release TAG] [--units a,b] [--dstdir D] [--home H] [--dry-run]` | fetches a release's assets (through `gh` or `GITHUB_TOKEN`), verifies every one against `SHA256SUMS`, installs wheels into a venv and binaries under `--home`, links launchers into `--dstdir` | 2 usage · 3 arch · 7 fetch · 8 verification failed · 9–10 install |
-| `tools/bench-gateway.sh [--duration 30s] [--workers 4] [--max-tokens 128] [--model symon-chat] [--out DIR]` | five timed stages against the live gateway; writes `bench-<ts>.json` and `.md` | 3 no key file · 4 gateway not answering |
+| `tools/bench-gateway.sh [--duration 30s] [--workers 4] [--max-tokens 128] [--model symon-sonnet] [--out DIR]` | five timed stages against the live gateway; writes `bench-<ts>.json` and `.md` | 3 no key file · 4 gateway not answering |
 | `tools/ship-gate.py --stage DIR [--repo DIR] [--json OUT]` | the release gate: licence class of every component in every closure, attribution, secrets by content and path, weights, trademarks, known vulnerabilities, August-dated inputs; re-derives every census itself | 0 pass/review · 1 any FAIL |
 | `tools/ship-gate.py --repo .` | the same gate over every blob in the repository's history | as above |
 | `tools/cut-release.sh TAG STAGE [--dry-run] [--prerelease]` | publishes a staged release only when the tag equals HEAD, the tree is clean, `SHA256SUMS` verifies and the gate passes; names assets per architecture | 3 tag/tree · 4 stage · 5 gate · 6 layout · 7 exists · 8 gh |

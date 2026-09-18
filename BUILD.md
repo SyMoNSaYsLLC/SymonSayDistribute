@@ -20,7 +20,7 @@ substitutes for the other, and a release needs both.
 | Chat unit | `127.0.0.1:8802` | the engine behind the gateway |
 | Web interface | `127.0.0.1:8812` | overview, registry, rack, three surfaces |
 
-Three models, one per client surface: `symon-chat`, `symon-coder`, `symon-work`.
+Three models, one per client surface: `symon-sonnet`, `symon-opus`, `symon-fable`.
 
 Nothing leaves the machine. Public reach, when wanted, is through the edge proxy and
 the operator's tunnel, never by binding an interface.
@@ -123,7 +123,7 @@ curl -fsS -H "authorization: Bearer $KEY" \
 curl -fsS -X POST http://127.0.0.1:9001/v1/messages \
   -H "authorization: Bearer $KEY" \
   -H 'content-type: application/json' \
-  -d '{"model":"symon-chat","max_tokens":1,"messages":[{"role":"user","content":"."}]}'
+  -d '{"model":"symon-sonnet","max_tokens":1,"messages":[{"role":"user","content":"."}]}'
 ```
 
 The last one is the exact request a conforming client's connection test sends. A 2xx

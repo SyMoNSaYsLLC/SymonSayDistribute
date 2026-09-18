@@ -66,7 +66,7 @@ matches one of the dialect's family patterns *or* the row carries the family-tie
 ids that carry an upstream vendor's name are commonly dropped outright. Two consequences:
 
 1. The upstream checkpoint's name is never exposed. The runtime offers its own names.
-2. A first-party id (`symon-chat`) matches no family pattern, so it is selectable **only**
+2. A first-party id (`symon-sonnet`) matches no family pattern, so it is selectable **only**
    because the gateway emits the tier field on every row. A plain chat-completions model
    list cannot carry it. The gateway is therefore not a convenience layer — it is the path
    by which a Symon-branded model reaches a picker at all.
@@ -94,14 +94,14 @@ curl -s http://127.0.0.1:9001/v1/models -H "x-api-key: $(cat "$SYM_GW_KEY_FILE")
 ```json
 {
   "data": [
-    {"type": "model", "id": "symon-chat",  "display_name": "Symon Chat",
+    {"type": "model", "id": "symon-sonnet",  "display_name": "Symon Chat",
      "created_at": "2026-09-18T00:00:00Z", "description": "...",
      "anthropic_family_tier": "sonnet", "is_family_default": true,
      "max_input_tokens": 16384, "max_output_tokens": 4096},
-    {"type": "model", "id": "symon-coder", "display_name": "Symon Coder", "...": "...",
+    {"type": "model", "id": "symon-opus", "display_name": "Symon Coder", "...": "...",
      "anthropic_family_tier": "opus",   "is_family_default": true,
      "max_input_tokens": 16384, "max_output_tokens": 8192},
-    {"type": "model", "id": "symon-work",  "display_name": "Symon Work",  "...": "...",
+    {"type": "model", "id": "symon-fable",  "display_name": "Symon Work",  "...": "...",
      "anthropic_family_tier": "fable",  "is_family_default": true,
      "max_input_tokens": 16384, "max_output_tokens": 8192}
   ],
@@ -110,16 +110,16 @@ curl -s http://127.0.0.1:9001/v1/models -H "x-api-key: $(cat "$SYM_GW_KEY_FILE")
 ```
 
 **One turn.** The engine's own name for the checkpoint never crosses this boundary; the
-response says `symon-chat` back:
+response says `symon-sonnet` back:
 
 ```sh
 curl -s http://127.0.0.1:9001/v1/messages \
   -H "x-api-key: $(cat "$SYM_GW_KEY_FILE")" -H 'content-type: application/json' \
-  -d '{"model": "symon-chat", "max_tokens": 64,
+  -d '{"model": "symon-sonnet", "max_tokens": 64,
        "messages": [{"role": "user", "content": "In one sentence, what are you?"}]}'
 ```
 ```json
-{"id": "msg_...", "type": "message", "role": "assistant", "model": "symon-chat",
+{"id": "msg_...", "type": "message", "role": "assistant", "model": "symon-sonnet",
  "content": [{"type": "text", "text": "..."}],
  "stop_reason": "end_turn", "stop_sequence": null,
  "usage": {"input_tokens": 0, "output_tokens": 0}}
@@ -132,7 +132,7 @@ server-sent events in the dialect's event order — `message_start`, `content_bl
 
 ```
 event: message_start
-data: {"type":"message_start","message":{"id":"msg_...","type":"message","role":"assistant","model":"symon-chat", ...}}
+data: {"type":"message_start","message":{"id":"msg_...","type":"message","role":"assistant","model":"symon-sonnet", ...}}
 
 event: content_block_delta
 data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"I"}}
@@ -143,7 +143,7 @@ data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text
 ```sh
 curl -s http://127.0.0.1:9001/v1/messages/count_tokens \
   -H "x-api-key: $(cat "$SYM_GW_KEY_FILE")" -H 'content-type: application/json' \
-  -d '{"model": "symon-coder", "messages": [{"role": "user", "content": "hello"}]}'
+  -d '{"model": "symon-opus", "messages": [{"role": "user", "content": "hello"}]}'
 # {"input_tokens": N}
 ```
 
@@ -166,7 +166,7 @@ curl -s http://127.0.0.1:9001/v1/messages -H "x-api-key: $(cat "$SYM_GW_KEY_FILE
 
 | Module | Responsibility | Design rule it embodies |
 |---|---|---|
-| `models.py` | the three cards — `symon-chat` (tier sonnet, surface chat), `symon-coder` (opus, code), `symon-work` (fable, cowork); sampling defaults applied only where the caller left a field unset | one default per tier, one card per surface; shared weights are *stated* in `x-symoneural.shares_weights_with`, never inferred |
+| `models.py` | the three cards — `symon-sonnet` (tier sonnet, surface chat), `symon-opus` (opus, code), `symon-fable` (fable, cowork); sampling defaults applied only where the caller left a field unset | one default per tier, one card per surface; shared weights are *stated* in `x-symoneural.shares_weights_with`, never inferred |
 | `worker.py` | the client to the chat unit; connect 2 s, read 900 s | forwards rather than translates — re-deriving a wire format the engine already emits is a second implementation of one spec, and the two drift |
 | `dialect.py` | the `/v1` router; error envelope; unknown models refused by name; the engine's model name rewritten to the card id on the way back; streams relayed byte-for-byte | the client never learns the checkpoint name |
 | `gateway.py` | the app; `Authorization: Bearer` or `x-api-key`, constant-time comparison; key re-read from `SYM_GW_KEY_FILE` on every request | unconfigured fails closed (500); `/health` is the only public route; rotation is "replace the file" |
@@ -186,7 +186,7 @@ above them knows which engine it is.
 
 The checkpoint is a 20-billion-parameter MXFP4 mixture-of-experts — 24 layers, 32 experts
 with 4 active per token, 13 GB on disk — held on a 16 GB card at a 16k served context and
-offered as `symon-chat`, `symon-coder`, `symon-work`. Its licence is Apache-2.0 and its
+offered as `symon-sonnet`, `symon-opus`, `symon-fable`. Its licence is Apache-2.0 and its
 provenance is recorded in the estate's model register and the release's third-party
 notices, where a licence obliges us to record it. Weights live outside every repository and
 are never packaged.

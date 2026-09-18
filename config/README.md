@@ -26,7 +26,7 @@ a defect to fix in the same change that introduced the variable.
 - **Weights.** `SYM_MODELS_DIR` points outside the repository. Nothing under `config/`
   or anywhere else in this tree carries a checkpoint.
 - **Client configuration.** The product exposes a public wire dialect (see `docs/ARCHITECTURE.md`); how any particular client is pointed at `SYM_GW_URL` is that client's business and is kept out of this repository. Reference notes for clients used during development live in the build estate, not here.
-- **Model cards.** `symon-chat`, `symon-coder`, `symon-work` are code today
+- **Model cards.** `symon-sonnet`, `symon-opus`, `symon-fable` are code today
   (`gateway/symoneural_gateway/models.py`). Moving them to data under `config/models/`
   is the natural next step once the engine behind `/v1` is the estate's own — recorded
   here so the direction is visible, not built until asked.
