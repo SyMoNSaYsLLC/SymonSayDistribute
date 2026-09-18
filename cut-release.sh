@@ -5,8 +5,10 @@
 #
 # cut-release — publish one runtime's release, but only if the ship gate passes.
 #
-#   workflow/cut-release.sh <runtime> <version> <stage> [--dry-run] [--prerelease]
-#   workflow/cut-release.sh symoneural-learn 1.4.0 ~/symoneural-release/v1.4.0
+#   Run from a runtime checkout, with this branch as a worktree beside it:
+#     git worktree add workflow workflow
+#     workflow/cut-release.sh <runtime> <version> <stage> [--dry-run] [--prerelease]
+#     workflow/cut-release.sh symoneural-learn 1.4.0 ~/symoneural-release/v1.4.0
 #
 # WHY A RUNTIME NAME AND NOT JUST A TAG
 # -------------------------------------
@@ -37,7 +39,11 @@ for a in "$@"; do case "$a" in --dry-run) DRY=1;; --prerelease) PRE="--prereleas
 
 VERSION=${VERSION#v}
 TAG="$RUNTIME/v$VERSION"
-REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
+# The machinery lives on its own branch and is usually checked out as a worktree inside the
+# runtime it is releasing, so its own location says nothing about which runtime is being cut.
+# The runtime is the directory this was RUN from; the scripts are beside this one.
+HERE=$(cd "$(dirname "$0")" && pwd)
+REPO_DIR=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "   not inside a git checkout"; exit 3; }
 cd "$REPO_DIR" || exit 3
 
 echo "== 1. branch ↔ runtime"
@@ -64,7 +70,7 @@ done
 echo "   $(wc -l < "$STAGE/SHA256SUMS") sums verified"
 
 echo "== 3. ship gate"
-python3 -I workflow/ship-gate.py --stage "$STAGE" --repo . --json "$STAGE/SHIP-GATE-REPORT.json"; rc=$?
+python3 -I "$HERE/ship-gate.py" --stage "$STAGE" --repo . --json "$STAGE/SHIP-GATE-REPORT.json"; rc=$?
 [ $rc -eq 0 ] || { echo "   SHIP GATE FAILED rc=$rc — nothing is published"; exit 5; }
 
 echo "== 4. assets"

@@ -53,11 +53,19 @@ ourselves; this is the latter, narrow enough to read in one sitting.
 
 A release belongs to a runtime and its tag names one:
 
+This branch is checked out as a worktree inside the runtime being released, so the machinery
+sits beside the source without ever being committed to it:
+
 ```sh
-git checkout symoneural-learn
+git clone --branch symoneural-learn <repo> && cd symoneural-learn
+git worktree add workflow workflow      # this branch, as a directory
 workflow/cut-release.sh symoneural-learn 1.4.0 ~/symoneural-release/v1.4.0 --dry-run
 workflow/cut-release.sh symoneural-learn 1.4.0 ~/symoneural-release/v1.4.0
 ```
+
+The cutter takes the runtime from the directory it is run in, not from where it lives: the
+machinery is shared by every runtime, so its own path says nothing about which one is being
+released.
 
 Installing resolves a runtime to its own latest release rather than the repository's, because
 "latest" across runtimes means whichever one shipped most recently, which is never what the
