@@ -22,7 +22,13 @@
 # an existing layout is lost, so it is run on a tree with nothing in flight.
 set -o pipefail
 repo=$1; url=$2; root=$HOME/$repo
-rm -rf "$root"; mkdir -p "$root" || exit 1
+# Clear the CONTENTS, not the directory: the trees live under /mnt, which is root-owned, so
+# removing the directory itself needs privilege the layout has no reason to hold. An empty
+# directory created once by an administrator is all this needs.
+mkdir -p "$root" 2>/dev/null
+[ -d "$root" ] || { echo "  $root does not exist and could not be created — create it first"; exit 1; }
+[ -w "$root" ] || { echo "  $root is not writable by $(id -un)"; exit 1; }
+find "$root" -mindepth 1 -maxdepth 1 -exec rm -rf {} + || exit 1
 git clone -q --bare "$url" "$root/.bare" || exit 1
 printf 'gitdir: ./.bare\n' > "$root/.git"
 cd "$root" || exit 1
