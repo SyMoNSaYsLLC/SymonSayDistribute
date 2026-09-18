@@ -68,6 +68,23 @@ Wheels land in a virtual environment under `~/.local/share/symoneural-learn/venv
 console scripts linked into `--dstdir`; binary units under `~/.local/share/symoneural-learn/<unit>/`
 with a launcher linked likewise. `tools/install-from-release.sh --help` lists every option.
 
+### Which units have source here, and which do not
+
+A release carries more units than this repository builds, and the distinction matters when you
+read the source rather than install it:
+
+| Unit | Source in this repository | Built by |
+|---|---|---|
+| `gateway` | yes — `gateway/` | this repository |
+| web interface | yes — `web/` | this repository |
+| bring-up scripts | yes — `runtime/` | this repository |
+| `api`, `llm`, `image`, `api-native` | no | the estate, from pristine upstream source, and published as release binaries |
+
+Every unit is first-party work under the same licence; the four without source here are compiled
+artifacts whose recipes live in the estate that produces this repository. Installing them is the
+supported path, and `tools/verify-3p-path.sh` exercises the result. If you only want what this
+repository builds, pass `--units gateway`.
+
 ## Install from source
 
 ```sh
