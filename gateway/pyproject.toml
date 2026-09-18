@@ -13,7 +13,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "symoneural-gateway"
 version = "1.0.0"
-description = "SyMoNsAyLeaRn — the /v1 Anthropic-dialect gateway in front of the estate's chat unit"
+description = "SyMoNsAyLeaRn — the /v1 Messages-dialect gateway in front of the estate's chat unit"
 readme = "gateway.md"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"

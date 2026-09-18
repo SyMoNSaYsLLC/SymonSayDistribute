@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: FSL-1.1-ALv2
 # Copyright 2026 SymonSaysLLC
 # SyMoNsAyLeaRn — SyMoNeuRaL, a subdivision of SymonSaysLLC. Terms: see LICENSE.
-"""symoneural_gateway — the /v1 Anthropic-dialect gateway on 127.0.0.1:9001.
+"""symoneural_gateway — the /v1 Messages-dialect gateway on 127.0.0.1:9001.
 
 Four modules, one process:
 

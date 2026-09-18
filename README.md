@@ -56,30 +56,31 @@ Each directory carries its own document named after it.
 
 ---
 
-## The one thing to understand before changing anything
+## The wire contract, and why it is this one
 
-A client filters the models a gateway advertises. Measured from the installed
-Claude Desktop bundle, not from documentation:
+The gateway speaks the Messages API dialect — `POST /v1/messages`, `GET /v1/models`,
+`POST /v1/messages/count_tokens`, streaming as server-sent events — under SyMoNeuRaL's own
+model names. The shape was chosen because it is a **public, widely implemented wire
+format**: every SDK, desktop client and CLI that already speaks it works against this
+runtime with a base-URL change and nothing else. The endpoint shapes are not ours and are
+not proprietary; what is ours is the implementation behind them, the model cards and the
+engine. `docs/ARCHITECTURE.md` gives the design and its reasons.
 
-```js
-Nxe = /...|gpt|...|openai|.../          // hard blocklist
-qo(id) = Nxe.test(id) ? false : Ko.test(id) || Mxe.some(m => id.includes(m))
-// a /v1/models row survives iff  qo(row.id) || row.anthropic_family_tier in Wo
-```
+Two design facts follow from the dialect:
 
-Two consequences that shape the whole design:
+1. Compatible clients filter `GET /v1/models` rows: an id survives if it matches the
+   dialect's family patterns **or** the row carries the family-tier field
+   (`FAMILY_TIER_FIELD` in `models.py`), and ids that carry an upstream vendor's name are
+   commonly dropped. So the upstream
+   checkpoint name is never exposed, and a first-party id such as `symon-chat` is selectable
+   **only** because this gateway emits the tier field — a plain chat-completions model list
+   cannot supply it. The field is a wire field, not a claim of equivalence to anyone's model.
+2. The three surfaces — chat, code, cowork — map to three model cards (`symon-chat`,
+   `symon-coder`, `symon-work`), one default per tier. Behind them runs one engine today,
+   reached through `SYM_CHAT_URL`; swapping it changes nothing above `worker.py`.
 
-1. A model named `gpt-oss-20b` can **never** be offered. `gpt` and `openai` are both
-   blocklist entries.
-2. `symon-chat` trips no blocklist entry but matches no allow-pattern either, so it
-   survives **only** because this gateway emits `anthropic_family_tier`.
-
-An engine emitting plain OpenAI-shaped model rows cannot supply that field. The
-first-party gateway is therefore not a convenience layer; it is the only path by
-which a Symon-branded model reaches a picker at all.
-
-`anthropic_family_tier` is a wire field, not a claim of equivalence to anyone else's
-model.
+Nothing in this runtime calls a third-party service. Inference runs on the operator's own
+hardware, the gateway binds loopback, and public reach is through the operator's edge proxy.
 
 ---
 
@@ -133,7 +134,7 @@ Serving, measured:
 |---|---|
 | Client's exact connection probe through the gateway | `200` in 0.365 s, `content` an array |
 | `/v1/models` | three rows, each carrying a tier |
-| Unknown model `gpt-oss-20b` | `404`, refused by name |
+| Unknown model (the upstream checkpoint's own name) | `404`, refused by name |
 | Web interface | `200`, 9 routes, TypeScript clean |
 
 Not proven: streaming through the gateway's relay path, and the BitBake image.
