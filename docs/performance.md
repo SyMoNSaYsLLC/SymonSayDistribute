@@ -56,15 +56,19 @@ Everything else is the engine.
 ## The estate's own engine
 
 Built 2026-09-18 (`symoneural-chat-engine`, 74 sm_120a kernels, MXFP4 kept 4-bit on the GPU, no
-host offload). Its first load attempt exited at the KV-cache plan
-([Troubleshooting](troubleshooting.md#the-engine-exits-at-load-with-num-gpu-blocks-is-0)); the
-ladder with an explicit `--pa-memory-mb` is the second attempt. **Numbers are recorded here only
-once a bench has run against it** — the row below is filled from `production/bench/` when it
-exists, not before.
+host offload). It loaded the checkpoint in 6 s with an explicit 820 MB KV cache and served the
+dialect through the unchanged gateway at **136 tok/s single-stream, 150 tok/s at two workers,
+first streamed event 35 ms** (`bench-20260918-082649.json`) — and **decoded garbage** — on the card and, in a second test, on the CPU path of the same build: a raw
+completion of "The capital of France is" at temperature 0 came back as unrelated words. The
+defect is the engine's model implementation for this checkpoint at the pinned commit, not the
+GPU kernels or the toolkit. Those throughput figures
+are therefore the speed of a wrong answer and are **not a performance number for the product**.
+The engine is staged as built-unverified; the defect, its isolation and the next tests are in
+the estate's `production/cutover/CUTOVER-2026-09-18.md`. The substitution engine was restored.
 
 | stage | result |
 |---|---|
-| (pending the first successful serve) | — |
+| any | not recorded until the decode is correct |
 
 ## What changes the numbers
 
