@@ -181,7 +181,8 @@ The product's own engine is `symoneural-llm`. Today the chat unit is served by a
 **acquired** engine (vLLM 0.27.1) from a host virtualenv — a substitution recorded under the
 estate rules (§3.10), named in `GET /version`, never reported as first-party. The gateway
 was written so that replacing it is a change of one address: `worker.py` reads
-`SYM_CHAT_URL`, and nothing above it knows which engine answers.
+`SYM_CHAT_URL`, `SYM_CHAT_WORKER_MODEL` names the model id that engine answers to, and nothing
+above them knows which engine it is.
 
 The checkpoint is a 20-billion-parameter MXFP4 mixture-of-experts — 24 layers, 32 experts
 with 4 active per token, 13 GB on disk — held on a 16 GB card at a 16k served context and
