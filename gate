@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
+# Copyright 2026 SymonSaysLLC
+#
+# gate — run one gate, or every gate, against a path.
+#
+#   gate --list
+#   gate <name> <path> [args...]
+#   gate --all <path>
+#   gate --exemptions <path>
+#
+# A gate answers one question with an exit code: 0 it passed, 1 it failed, 2 it was misused.
+# Nothing here prints a verdict it did not derive from the path it was given.
+set -o pipefail
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+DIR="$HERE/gates"
+
+list() { for g in "$DIR"/*.sh; do n=$(basename "$g" .sh); printf '  %-22s %s\n' "$n" "$(sed -n 's/^# one-line: //p' "$g" | head -1)"; done; }
+
+case "${1:-}" in
+  ""|--help|-h) echo "gate --list | gate <name> <path> | gate --all <path> | gate --exemptions <path>"; echo; list; exit 0 ;;
+  --list) list; exit 0 ;;
+  --exemptions)
+    # Every exemption in one place. An exemption nobody can enumerate is a hole, not an
+    # exception, so the mechanism that lets a detector off its own pattern also has to make
+    # every use of it visible.
+    target=${2:?path to list exemptions in}
+    echo "line-level (this line declares the pattern rather than using it):"
+    grep -rnI "gate""-allow:" --exclude-dir=.git "$target" 2>/dev/null | sed 's/^/  /' || true
+    echo
+    echo "file-level (the whole file is a detector or a fixture):"
+    grep -rnI "gate""-allow-file:" --exclude-dir=.git "$target" 2>/dev/null | sed 's/^/  /' || true
+    exit 0 ;;
+  --all)
+    target=${2:?path to check}
+    fails=0; ran=0
+    for g in "$DIR"/*.sh; do
+      n=$(basename "$g" .sh)
+      [ -n "$(sed -n 's/^# needs-target: //p' "$g")" ] || true
+      out=$("$g" "$target" 2>&1); rc=$?
+      ran=$((ran+1))
+      if [ $rc -eq 0 ]; then printf '  PASS  %-22s\n' "$n"
+      elif [ $rc -eq 2 ]; then printf '  SKIP  %-22s %s\n' "$n" "$(echo "$out" | head -1)"
+      else printf '  FAIL  %-22s\n' "$n"; echo "$out" | sed 's/^/          /'; fails=$((fails+1)); fi
+    done
+    echo; echo "$ran gate(s) run, $fails failed"
+    [ $fails -eq 0 ] || exit 1
+    exit 0 ;;
+esac
+
+g="$DIR/$1.sh"
+[ -x "$g" ] || { echo "no such gate: $1" >&2; list >&2; exit 2; }
+shift
+exec "$g" "$@"

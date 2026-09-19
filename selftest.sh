@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
+# Copyright 2026 SymonSaysLLC
+#
+# selftest — prove every gate can fail.
+#
+# A gate that only ever passes has enforced nothing, and looks identical in a report to a gate
+# that works. Section 3.1d puts it plainly: a check that cannot fail is not a test. So each gate
+# here is run twice, against a fixture built to violate it and a fixture built to satisfy it,
+# and the gate is only sound if it fails the first and passes the second.
+#
+# The credential fixture is a synthetic string of the right SHAPE and nothing more. No real
+# secret is written, printed or committed by this file.
+set -o pipefail
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/gate-selftest-XXXXXX") || exit 1
+trap 'rm -rf "$WORK"' EXIT
+BAD="$WORK/bad"; GOOD="$WORK/good"; mkdir -p "$BAD" "$GOOD"
+
+# ------------------------------------------------------------------ fixtures
+printf '#!/bin/sh\ngit add -A\n'                              > "$BAD/blanket.sh"
+printf '#!/bin/sh\ngit add -- one.txt two.txt\n'              > "$GOOD/explicit.sh"
+printf 'token = "sk-ant-EXAMPLE0NOT0A0REAL0KEY000000"\n'      > "$BAD/creds.py"  # gate-allow: no-secret — synthetic fixture, written to a temp dir only
+printf 'token = os.environ["SYM_CHAT_TOKEN"]\n'               > "$GOOD/creds.py"
+: > "$BAD/model.safetensors"
+printf 'weights live outside git\n'                           > "$GOOD/README.md"
+printf 'decided on 2026-08-14\n'                              > "$BAD/old.md"  # gate-allow: no-august — synthetic fixture, written to a temp dir only
+printf 'decided on 2026-09-18\n'                              > "$GOOD/new.md"
+printf '#!/bin/sh\nmake all | tail -3; rc=$?\n'               > "$BAD/piped.sh"  # gate-allow: exit-code-direct — synthetic fixture, written to a temp dir only
+printf '#!/bin/sh\nmake all > log 2>&1; rc=$?\ntail -3 log\n' > "$GOOD/direct.sh"
+printf '#!/bin/sh\nsudo pkill --ns 1234\n'                    > "$BAD/signal.sh"  # gate-allow: forbidden-signal — synthetic fixture, written to a temp dir only
+printf '#!/bin/sh\nkill -CONT "$PID"; kill -TERM "$PID"\n'    > "$GOOD/signal.sh"
+mkdir -p "$BAD/pkg/source" && git -C "$BAD/pkg/source" init -q 2>/dev/null \
+  && printf 'edited\n' > "$BAD/pkg/source/patched.c"
+mkdir -p "$GOOD/pkg/source" && git -C "$GOOD/pkg/source" init -q 2>/dev/null \
+  && printf 'pristine\n' > "$GOOD/pkg/source/orig.c" \
+  && git -C "$GOOD/pkg/source" add -- orig.c >/dev/null 2>&1 \
+  && git -C "$GOOD/pkg/source" -c user.email=t@t -c user.name=t commit -qm pristine >/dev/null 2>&1
+
+pass=0; fail=0
+check() { # check <gate> <fixture> <expect: FAIL|PASS> <extra args...>
+  local g=$1 fixture=$2 expect=$3; shift 3
+  "$HERE/gate" "$g" "$fixture" "$@" >/dev/null 2>&1; local rc=$?
+  local got; if [ $rc -eq 0 ]; then got=PASS; elif [ $rc -eq 2 ]; then got=MISUSE; else got=FAIL; fi
+  if [ "$got" = "$expect" ]; then
+    printf '  ok    %-22s %-34s %s\n' "$g" "$(basename "$fixture")" "$expect"; pass=$((pass+1))
+  else
+    printf '  BROKEN %-21s %-34s expected %s, got %s\n' "$g" "$(basename "$fixture")" "$expect" "$got"; fail=$((fail+1))
+  fi
+}
+
+echo "each gate against a fixture that violates it, then one that satisfies it"
+echo
+check no-blanket-add    "$BAD/blanket.sh"   FAIL
+check no-blanket-add    "$GOOD/explicit.sh" PASS
+check no-secret         "$BAD/creds.py"     FAIL
+check no-secret         "$GOOD/creds.py"    PASS
+check no-weights        "$BAD"              FAIL
+check no-weights        "$GOOD/README.md"   PASS
+check no-august         "$BAD/old.md"       FAIL
+check no-august         "$GOOD/new.md"      PASS
+check exit-code-direct  "$BAD/piped.sh"     FAIL
+check exit-code-direct  "$GOOD/direct.sh"   PASS
+check forbidden-signal  "$BAD/signal.sh"    FAIL
+check forbidden-signal  "$GOOD/signal.sh"   PASS
+check no-upstream-write "$BAD/pkg"          FAIL
+check no-upstream-write "$GOOD/pkg"         PASS
+check on-disk           "$HERE"             PASS
+# A tmpfs accepts every write and keeps none of them across a reboot. It is the exact thing
+# "on disk" exists to exclude, so it is the fixture that proves this gate can fail.
+[ -d /dev/shm ] && check on-disk "/dev/shm"  FAIL
+check claim             "$HERE/gate"        PASS   executable
+# A false claim reports FALSE and exits 1. That is the gate working: the point is to make the
+# claim fail HERE rather than three steps later inside whatever was built on it.
+check claim             "$WORK/absent"      FAIL   exists
+check claim             "$HERE"             FAIL   file
+check licence-stamped   "$WORK"             MISUSE
+# Inside one of the four trees, a directory with no LICENSE is exactly the state this refuses.
+[ -d /mnt/SymonSayDistribute/.bare ] && check licence-stamped /mnt/SymonSayDistribute/.bare FAIL
+[ -d /mnt/SymonSayDistribute/workflow ] && check licence-stamped /mnt/SymonSayDistribute/workflow PASS
+
+echo
+echo "$pass sound, $fail broken"
+[ $fail -eq 0 ] || exit 1
