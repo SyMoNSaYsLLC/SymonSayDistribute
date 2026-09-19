@@ -149,6 +149,13 @@ NOT_EXPOSED = {
     "loop_jobs":       "granted as a tool; enumerated by GET /api/agents/connectors",
     "loop_due":        "granted as a tool; enumerated by GET /api/agents/connectors",
     "loop_schedule":   "granted as a tool; enumerated by GET /api/agents/connectors",
+    "skills_known":    "granted as a tool; enumerated by GET /api/agents/connectors",
+    "skill_relevant":  "granted as a tool; enumerated by GET /api/agents/connectors",
+    "skill_read":      "granted as a tool; enumerated by GET /api/agents/connectors",
+    "store_models":    "granted as a tool; enumerated by GET /api/agents/connectors",
+    "targets_buildable":"granted as a tool; enumerated by GET /api/agents/connectors",
+    "build_ready":     "granted as a tool; enumerated by GET /api/agents/connectors",
+    "find_permissive": "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_fetch":      "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_browse":     "granted as a tool; enumerated by GET /api/agents/connectors",
     "estate_survey":  "granted as a tool; enumerated by GET /api/agents/connectors",
@@ -442,6 +449,56 @@ def loop_schedule(a: dict) -> Any:
     return {"job": rec, "first_fire": nxt["next"], "seconds_away": nxt.get("seconds_away")}
 
 
+def skills_known(a: dict) -> Any:
+    """Every named procedure this estate knows, with invalid ones listed rather than hidden."""
+    return _call("symonskill", "/api/symonskill/skills", timeout=30.0)
+
+
+def skill_relevant(a: dict) -> Any:
+    """Which skills a task might need, ranked, with the words that matched so the ranking
+    can be disagreed with."""
+    task = (a.get("task") or "").strip()
+    if not task:
+        raise ToolError("skill_relevant needs a task to match against")
+    return _call("symonskill",
+                 f"/api/symonskill/relevant?task={urllib.parse.quote(task)}", timeout=30.0)
+
+
+def skill_read(a: dict) -> Any:
+    """One skill with its body — the procedure itself, loaded when it has been chosen."""
+    name = (a.get("name") or "").strip()
+    if not name:
+        raise ToolError("skill_read needs a skill name")
+    return _call("symonskill",
+                 f"/api/symonskill/skills/{urllib.parse.quote(name)}", timeout=30.0)
+
+
+def store_models(a: dict) -> Any:
+    """Which checkpoints the weight store holds, and whether each verifies against its manifest."""
+    return _call("store", "/api/store/models", timeout=60.0)
+
+
+def targets_buildable(a: dict) -> Any:
+    """Which platforms this estate can target right now, and what blocks each that it cannot."""
+    return _call("symoncross", "/api/symoncross/targets", timeout=180.0)
+
+
+def build_ready(a: dict) -> Any:
+    """Whether an OpenEmbedded build could run right now, precondition by precondition."""
+    return _call("symonbuild", "/api/symonbuild/buildable", timeout=120.0)
+
+
+def find_permissive(a: dict) -> Any:
+    """Rules 3.1b-i answered as a query: is there a NON-copyleft implementation of a capability,
+    and what was searched to find out."""
+    cap = (a.get("capability") or "").strip()
+    if not cap:
+        raise ToolError("find_permissive needs a capability, e.g. 'compression' or 'tls'")
+    return _call("symonoematch",
+                 f"/api/symonoematch/permissive?capability={urllib.parse.quote(cap)}",
+                 timeout=120.0)
+
+
 CONNECTORS: list[Tool] = [
     Tool("board_settings", "Every configured setting in the estate, or one section. "
          "Optional argument: section.",
@@ -588,7 +645,49 @@ CONNECTORS: list[Tool] = [
           "properties": {"work": {"type": "string"}, "cadence": {"type": "string"},
                          "job_id": {"type": "string"}, "note": {"type": "string"}},
           "required": ["work", "cadence"]}, loop_schedule),
+    Tool("skills_known", "Every named procedure this estate knows, with any that carry a broken "
+         "contract listed rather than hidden.",
+         {"type": "object", "properties": {}}, skills_known),
+    Tool("skill_relevant", "Which of this estate's procedures a task might need, ranked, with "
+         "the words that matched so the ranking can be checked.",
+         {"type": "object", "properties": {"task": {"type": "string"}},
+          "required": ["task"]}, skill_relevant),
+    Tool("skill_read", "One procedure with its body — read it after deciding it applies.",
+         {"type": "object", "properties": {"name": {"type": "string"}},
+          "required": ["name"]}, skill_read),
+    Tool("store_models", "Which checkpoints the weight store holds, and whether each still "
+         "verifies against its recorded manifest.",
+         {"type": "object", "properties": {}}, store_models),
+    Tool("targets_buildable", "Which platforms this estate can build for right now, with what "
+         "blocks each one it cannot.",
+         {"type": "object", "properties": {}}, targets_buildable),
+    Tool("build_ready", "Whether an OpenEmbedded build could run right now, naming each missing "
+         "precondition rather than a bare no.",
+         {"type": "object", "properties": {}}, build_ready),
+    Tool("find_permissive", "Is there a non-copyleft implementation of a capability? Answers "
+         "rule 3.1b-i from the layer corpus and returns what was searched.",
+         {"type": "object", "properties": {"capability": {"type": "string"}},
+          "required": ["capability"]}, find_permissive),
 ]
+
+# Components on the board that deliberately have NO agent tool, each with the reason. The
+# `wiring-complete` gate requires a decision here rather than silence: a component nothing can
+# reach is either a gap or a choice, and only one of those is acceptable undeclared.
+NO_TOOL_REASON: dict[str, str] = {
+    "agents": "this process IS the tool host. A tool reaching the agents runtime would be the "
+              "runtime calling itself, and a caller that wants the tool list already has it — "
+              "that is what GET /api/agents/connectors is",
+    "fabric": "every tool here already routes through it; a tool for the fabric would be a "
+              "second way to do what _call already does",
+    "chat": "the engine, reached through the gateway which owns the dialect and the credential. "
+            "A second path to the engine is a second thing to secure",
+    "web": "a browser interface, not a component API",
+    "control_plane": "read-only and supervised elsewhere (rules R14)",
+    "gateway": "reached as list_models; the rest of its surface is the public dialect, not a "
+               "tool surface",
+    "symondevice": "PENDING — the component is still being built. This entry is a placeholder "
+                   "and must become a tool or a real reason before it is released",
+}
 
 
 def connectors() -> list[dict]:
@@ -620,6 +719,10 @@ def connectors() -> list[dict]:
         "schedule_next": "symonscheduler", "schedule_describe": "symonscheduler",
         "loop_jobs": "symonloop", "loop_due": "symonloop",
         "loop_schedule": "symonloop",
+        "skills_known": "symonskill", "skill_relevant": "symonskill",
+        "skill_read": "symonskill",
+        "store_models": "store", "targets_buildable": "symoncross",
+        "build_ready": "symonbuild", "find_permissive": "symonoematch",
     }
     try:
         table = {c["component"]: c for c in _fabric_get("/api/fabric/components")["components"]}
