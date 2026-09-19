@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 # Copyright 2026 SymonSaysLLC
-HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+#
+# The real directory, not the symlink's. This is normally invoked through a link on PATH, and
+# `dirname "$BASH_SOURCE"` gives the link's directory — where board.py is not. It failed on the
+# first invocation through a link, having worked every time it was called by its real path.
+HERE=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
 exec python3 "$HERE/board.py" "$@"
