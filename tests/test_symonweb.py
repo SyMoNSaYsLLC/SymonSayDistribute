@@ -171,3 +171,31 @@ def test_a_real_browser_renders_and_the_session_is_closed():
     r = B.visit("https://example.com/")
     assert r["title"] == "Example Domain" and r["rendered"] is True
     assert "Example Domain" in r["text"]
+
+# --- two bugs found the first time this read a real API ------------------------------------
+@pytest.mark.network
+def test_a_json_api_comes_back_readable_not_empty():
+    """It returned 200 with an empty string: the extractor only kept text/* and json is not."""
+    import json as _json
+    r = F.fetch("https://huggingface.co/api/models/black-forest-labs/FLUX.1-schnell")
+    assert r["status"] == 200
+    assert r["content_type"] == "application/json"
+    assert r["text"].strip(), "a json body came back empty"
+    _json.loads(r["text"])          # parses, so it was decompressed and decoded
+
+
+@pytest.mark.network
+def test_a_gzipped_body_is_decompressed_whatever_case_the_header_uses():
+    """Content-Encoding was looked up with exact case. Servers that lowercase it had their
+    compressed bytes handed back AS TEXT — a 200 whose body looks like line noise."""
+    r = F.fetch("https://huggingface.co/api/models/black-forest-labs/FLUX.1-schnell")
+    assert not r["text"].startswith("\x1f\x8b"), "gzip magic in the text: not decompressed"
+    assert r["text"].lstrip()[:1] in "{[", "body is not the json it claims to be"
+
+
+def test_textual_content_types_are_recognised_beyond_text_slash():
+    """The classification itself, without the network."""
+    import inspect
+    src = inspect.getsource(F.fetch)
+    for ct in ("application/json", "+json", "application/xml"):
+        assert ct in src, f"{ct} is not recognised as textual"

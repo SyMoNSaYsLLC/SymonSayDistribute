@@ -151,9 +151,16 @@ def fetch(url: str, *, timeout: float = 20.0, max_bytes: int = MAX_BYTES,
         except urllib.error.URLError as e:
             raise Refused(f"{current} did not answer: {e.reason}", current)
 
+        # HTTP header names are case-insensitive and servers disagree about which case they
+        # use. Looking up "Content-Encoding" exactly meant any server that sends
+        # "content-encoding" had its gzip left undecompressed, and the compressed bytes were
+        # handed back AS TEXT — a 200 with a body that looks like line noise. Found against a
+        # model registry that lowercases it.
+        headers = {k.lower(): v for k, v in headers.items()}
+
         chain.append({"url": current, "status": status, "addresses": where["addresses"]})
 
-        if status in (301, 302, 303, 307, 308) and headers.get("Location"):
+        if status in (301, 302, 303, 307, 308) and headers.get("location"):
             if hop >= MAX_HOPS:
                 raise Refused(f"more than {MAX_HOPS} redirects", url)
             current = urllib.parse.urljoin(current, headers["Location"])
@@ -162,8 +169,8 @@ def fetch(url: str, *, timeout: float = 20.0, max_bytes: int = MAX_BYTES,
 
     truncated = len(body) > max_bytes
     body = body[:max_bytes]
-    body = _decode_body(body, (headers.get("Content-Encoding") or "").lower() or None)
-    ctype = (headers.get("Content-Type") or "").lower()
+    body = _decode_body(body, (headers.get("content-encoding") or "").lower() or None)
+    ctype = (headers.get("content-type") or "").lower()
     charset = "utf-8"
     m = re.search(r"charset=([\w-]+)", ctype)
     if m:
@@ -193,7 +200,16 @@ def fetch(url: str, *, timeout: float = 20.0, max_bytes: int = MAX_BYTES,
         out["links"] = links
         out["counts"] = {"characters": len(out["text"]), "links": len(links)}
     else:
-        out["text"] = text_body if out["content_type"].startswith("text/") else ""
+        # Anything that IS text gets returned as text, not just text/*. A fetcher that reads
+        # html and refuses json cannot read an API, and the first real use of this was a model
+        # registry that answers application/json — it returned 200 and an empty string, which
+        # reads as "the page is blank" rather than "this unit cannot read that type".
+        ct = out["content_type"]
+        textual = (ct.startswith("text/")
+                   or ct in ("application/json", "application/xml", "application/javascript",
+                             "application/x-ndjson", "application/yaml")
+                   or ct.endswith(("+json", "+xml")))
+        out["text"] = text_body if textual else ""
         out["links"] = []
         out["counts"] = {"characters": len(out["text"]), "links": 0}
         if not out["text"]:
