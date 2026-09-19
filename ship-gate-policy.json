@@ -1,8 +1,8 @@
 {
   "schema": "symoneural-ship-gate/1",
   "decided": "2026-09-18",
-  "decided_by": "Garrett McDonald — 'clean from all angles', not only copyleft",
-  "product_licence": "FSL-1.1-ALv2",
+  "decided_by": "Garrett McDonald \u2014 'clean from all angles', not only copyleft",
+  "product_licence": "LicenseRef-SymonSaysLLC-Proprietary-1.0",
   "product_is_commercial": true,
   "classes": {
     "PERMISSIVE": {
@@ -73,6 +73,12 @@
       ],
       "note": "Fine to ship. Every component in this class MUST appear in THIRD-PARTY-NOTICES with name, version and licence; Apache-2.0 NOTICE files must be reproduced."
     },
+    "INVOKED_NOT_LINKED": {
+      "verdict": "PASS",
+      "requires_attribution": false,
+      "why": "A program our code EXECUTES rather than links: an interpreter named in a shebang, or a command run as a child process. Copyleft governs the work a library is combined into; it does not cross an exec boundary. The component's real licence is kept in the row so an audit still sees GPL-3.0 where GPL-3.0 is what was run.",
+      "ids": []
+    },
     "WEAK_COPYLEFT_FILE": {
       "verdict": "PASS_IF_UNMODIFIED",
       "requires_attribution": true,
@@ -88,7 +94,7 @@
         "EUPL-1.1",
         "OSL-3.0-file"
       ],
-      "note": "File-level copyleft. Passes only when the files are shipped unmodified; any modification of a covered file must be published under the same terms. EUPL and OSL are here only for file scope — their network clauses are handled in NETWORK_COPYLEFT when they govern a whole component."
+      "note": "File-level copyleft. Passes only when the files are shipped unmodified; any modification of a covered file must be published under the same terms. EUPL and OSL are here only for file scope \u2014 their network clauses are handled in NETWORK_COPYLEFT when they govern a whole component."
     },
     "WEAK_COPYLEFT_LIB": {
       "verdict": "PASS_IF_DYNAMIC",
@@ -101,7 +107,7 @@
         "LGPL-2.1",
         "LGPL-2.0"
       ],
-      "note": "Passes only across a dynamic-link boundary (glibc, GStreamer core). FAILS when statically linked — which is every Rust closure and every static C archive. LGPL-3 is NOT here: the image policy INCOMPATIBLE_LICENSE excludes it and so does this gate."
+      "note": "Passes only across a dynamic-link boundary (glibc, GStreamer core). FAILS when statically linked \u2014 which is every Rust closure and every static C archive. LGPL-3 is NOT here: the image policy INCOMPATIBLE_LICENSE excludes it and so does this gate."
     },
     "STRONG_COPYLEFT": {
       "verdict": "FAIL",
@@ -169,7 +175,7 @@
         "Parity-7.0.0",
         "Parity-6.0.0"
       ],
-      "note": "Triggers on serving over a network — exactly what the product does."
+      "note": "Triggers on serving over a network \u2014 exactly what the product does."
     },
     "USE_RESTRICTED": {
       "verdict": "FAIL",
@@ -245,7 +251,7 @@
         "shall not be used for",
         "may not be used to"
       ],
-      "note": "We are a commercial product. Anything that restricts commercial use, competing use, field of use or acceptable use FAILS — including OTHER companies' source-available licences (their FSL/BSL/Elastic forbids exactly what we would be doing). Our own FSL-1.1-ALv2 on our own code is of course fine; the checker exempts first-party units by name."
+      "note": "We are a commercial product. Anything that restricts commercial use, competing use, field of use or acceptable use FAILS \u2014 including OTHER companies' source-available licences (their FSL/BSL/Elastic forbids exactly what we would be doing). Our own FSL-1.1-ALv2 on our own code is of course fine; the checker exempts first-party units by name."
     },
     "NUISANCE_CLAUSE": {
       "verdict": "FAIL",
@@ -288,7 +294,9 @@
         "LicenseRef-Custom",
         "Custom",
         "Commercial",
-        "LicenseRef-Commercial"
+        "LicenseRef-Commercial",
+        "NVIDIA-graphics-drivers",
+        "LicenseRef-NVIDIA-CUDA"
       ],
       "note": "Passes only with an entry in exceptions[] naming the component, the redistributable list it relies on (e.g. CUDA EULA Attachment A), and who ruled. The NVIDIA driver and GSP firmware are never shipped."
     },
@@ -316,9 +324,9 @@
   "attribution_rule": "every shipped component in PERMISSIVE / WEAK_* must appear in THIRD-PARTY-NOTICES.md by name; absence FAILS the unit",
   "weights_rule": "no weights (.safetensors .gguf .pt .pth .ckpt .bin>100MB .npz .h5 .onnx>100MB) inside any artifact; named weights must be PERMISSIVE (Apache-2.0 / MIT). RAIL, Llama, Gemma, non-commercial weights FAIL even when only referenced by default config.",
   "trademark_rule": "third-party marks (openai, gpt, anthropic, claude, nvidia, geforce, meta, llama, google, gemma, mistral, huggingface, cloudflare) must not appear in artifact filenames, package names, image names or product-facing UI titles. Occurrences in UI body text, client-compatibility notes and dependency names are listed for REVIEW, not failed.",
-  "secrets_rule": "any match of the secrets regex set in the CONTENT of any staged file, inside any archive, or in any blob of the git history to be pushed FAILS; any file whose PATH matches secret_file_paths FAILS. Mentioning where a key file lives (its path) is permitted — that is how the code documents the secret's location without carrying it.",
+  "secrets_rule": "any match of the secrets regex set in the CONTENT of any staged file, inside any archive, or in any blob of the git history to be pushed FAILS; any file whose PATH matches secret_file_paths FAILS. Mentioning where a key file lives (its path) is permitted \u2014 that is how the code documents the secret's location without carrying it.",
   "vulnerability_rule": "known CVEs of severity HIGH or CRITICAL in the shipped closure FAIL (pip-audit, pnpm audit --prod, cargo audit). An unavailable scanner is recorded as REVIEW, never as a pass.",
-  "august_rule": "any input dated 2026-08 (mtime, pin date, tag date, log line) FAILS — it predates the fresh start",
+  "august_rule": "any input dated 2026-08 (mtime, pin date, tag date, log line) FAILS \u2014 it predates the fresh start",
   "first_party_units": [
     "symoneural-api",
     "symoneural-llm",
@@ -333,7 +341,9 @@
     "source",
     "symoneural-gateway",
     "symoneural-image-cuda",
-    "symoneural-chat-engine"
+    "symoneural-chat-engine",
+    "skills",
+    "gates"
   ],
   "exceptions": [
     {
@@ -347,8 +357,8 @@
       "component": "libgcc / libstdc++ / libgomp",
       "licence": "GPL-3.0-or-later WITH GCC-exception-3.1",
       "class": "STRONG_COPYLEFT",
-      "why_it_passes": "GCC Runtime Library Exception 3.1 §1 permits linking into proprietary works",
-      "ruled_by": "policy — exceptions_that_neutralise"
+      "why_it_passes": "GCC Runtime Library Exception 3.1 \u00a71 permits linking into proprietary works",
+      "ruled_by": "policy \u2014 exceptions_that_neutralise"
     },
     {
       "component": "cuda-runtime-libraries",
@@ -427,5 +437,8 @@
     "(^|/)\\.netrc$",
     "credentials\\.json$",
     "service-account.*\\.json$"
-  ]
+  ],
+  "product_licence_note": "FSL-1.1-ALv2 until 2026-09-18, when the SymonSaysLLC Proprietary License 1.0 replaced it on SymonSayDistribute and SymonSaySource. Recorded, not consumed: no check reads this field.",
+  "open_source_licence": "LicenseRef-SymonSaysLLC-OpenSource-1.0",
+  "invoked_rule": "A component reached across a process boundary is classed INVOKED_NOT_LINKED, never relabelled permissive. Linking is what triggers copyleft; invoking is not linking. A PROPRIETARY third-party program we merely execute is treated the same way: we redistribute none of its bytes, so its terms bind its own distribution, not ours. UNKNOWN is NOT neutralised by invocation \u2014 a licence we could not establish stays a failure however the component is reached."
 }

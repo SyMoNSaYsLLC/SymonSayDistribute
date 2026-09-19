@@ -16,6 +16,9 @@ from __future__ import annotations
 import argparse, json, re
 from pathlib import Path
 
+POLICY = json.loads((Path(__file__).resolve().parent / "ship-gate-policy.json").read_text())
+PRODUCT_LICENCE = POLICY["product_licence"]
+
 def human(n: int) -> str:
     """A size a reader can act on: a 22 kB wheel and a 62 MB library are not both '0.0 MB'."""
     for unit, step in (("GB", 1 << 30), ("MB", 1 << 20), ("kB", 1 << 10)):
@@ -65,7 +68,7 @@ def main() -> None:
     L: list[str] = []
     L += [f"# SyMoNsAyLeaRn {a.tag}", "",
           "SyMoNeuRaL's own runtimes, built from pristine upstream source. Licensed under",
-          "FSL-1.1-ALv2: source-available now, Apache-2.0 two years after this release. See",
+          f"{PRODUCT_LICENCE}: source-available now, Apache-2.0 two years after this release. See",
           "`LICENSE`, and `THIRD-PARTY-NOTICES.md` for every third-party component the",
           "artifacts actually contain.", ""]
 

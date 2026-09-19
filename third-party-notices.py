@@ -20,7 +20,10 @@ from __future__ import annotations
 import argparse, json, re
 from pathlib import Path
 
-ORDER = ["PERMISSIVE", "WEAK_COPYLEFT_FILE", "WEAK_COPYLEFT_LIB", "NUISANCE_CLAUSE", "PROPRIETARY_THIRD_PARTY", "USE_RESTRICTED", "UNKNOWN", "STRONG_COPYLEFT", "NETWORK_COPYLEFT"]
+POLICY = json.loads((Path(__file__).resolve().parent / "ship-gate-policy.json").read_text())
+PRODUCT_LICENCE = POLICY["product_licence"]
+
+ORDER = ["PERMISSIVE", "INVOKED_NOT_LINKED", "WEAK_COPYLEFT_FILE", "WEAK_COPYLEFT_LIB", "NUISANCE_CLAUSE", "PROPRIETARY_THIRD_PARTY", "USE_RESTRICTED", "UNKNOWN", "STRONG_COPYLEFT", "NETWORK_COPYLEFT"]
 
 def main() -> None:
     ap = argparse.ArgumentParser()
@@ -28,7 +31,7 @@ def main() -> None:
     a = ap.parse_args()
     rep = json.loads(a.report.read_text())
     lines = ["# Third-party notices", "",
-             "SyMoNsAyLeaRn is licensed under FSL-1.1-ALv2 (see LICENSE). A release combines that first-party work with",
+             f"SyMoNsAyLeaRn is licensed under {PRODUCT_LICENCE} (see LICENSE). A release combines that first-party work with",
              "the third-party components below, each under its own licence. This file is generated from the ship",
              f"gate's census of the staged artifacts (`{a.report.name}`, policy `{rep.get('policy')}`); it lists what the",
              "artifacts actually contain, not what a dependency file declares.", ""]
@@ -41,7 +44,7 @@ def main() -> None:
         first = [c for c in comps if c.get("reason") == "first-party"]
         lines += [f"## {unit}", ""]
         if first:
-            lines += ["First-party (FSL-1.1-ALv2): " + ", ".join(sorted({c['name'] for c in first})), ""]
+            lines += [f"First-party ({PRODUCT_LICENCE}): " + ", ".join(sorted({c['name'] for c in first})), ""]
         by_class: dict[str, list] = {}
         for c in third:
             by_class.setdefault(c.get("class", "UNKNOWN"), []).append(c)

@@ -30,7 +30,7 @@ for cname, c in CLASSES.items():
         ID2CLASS.setdefault(i.lower(), cname)
 NEUTRALISE = {e.lower() for e in CLASSES["STRONG_COPYLEFT"]["exceptions_that_neutralise"]}
 USE_KW = [k.lower() for k in CLASSES["USE_RESTRICTED"].get("keywords", [])]
-RANK = ["PERMISSIVE", "WEAK_COPYLEFT_FILE", "WEAK_COPYLEFT_LIB", "NUISANCE_CLAUSE", "PROPRIETARY_THIRD_PARTY",
+RANK = ["PERMISSIVE", "INVOKED_NOT_LINKED", "WEAK_COPYLEFT_FILE", "WEAK_COPYLEFT_LIB", "NUISANCE_CLAUSE", "PROPRIETARY_THIRD_PARTY",
         "USE_RESTRICTED", "UNKNOWN", "STRONG_COPYLEFT", "NETWORK_COPYLEFT"]
 FAIL_CLASSES = {c for c, v in CLASSES.items() if v["verdict"] == "FAIL"}
 EXC_COMPONENTS = {e["component"].lower(): e for e in POLICY.get("exceptions", [])}
@@ -40,6 +40,10 @@ SECRET_RX = {k: re.compile(v.encode()) for k, v in POLICY["secrets_patterns"].it
 SECRET_PATH_RX = [re.compile(p) for p in POLICY.get("secret_file_paths", [])]
 WEIGHT_EXT = tuple(POLICY["weights_extensions"])
 BIG = POLICY["large_binary_review_bytes"]
+# The product licence is policy, not a literal. It was written out in five places and all
+# five went stale together when the SymonSaysLLC licences replaced FSL-1.1-ALv2 — including
+# an equality test, where a stale string is a silent behaviour change rather than wrong text.
+PRODUCT_LICENCE = POLICY["product_licence"]
 
 # ----------------------------------------------------------------------------- SPDX
 _norm = {"apache 2.0": "Apache-2.0", "apache-2": "Apache-2.0", "apache software license": "Apache-2.0", "apache license 2.0": "Apache-2.0",
@@ -90,7 +94,7 @@ def detect_licence_text(text: str) -> str:
     if "mozilla public license" in t: return "MPL-2.0"
     return ""
 
-def classify(expr: str | None, *, static: bool = False, component: str = "") -> tuple[str, str]:
+def classify(expr: str | None, *, static: bool = False, invoked: bool = False, component: str = "") -> tuple[str, str]:
     """Return (class, reason) for an SPDX expression. OR → least restrictive; AND → most; WITH exception may neutralise.
     A recorded exception for the component wins first, whatever the expression says (or fails to say)."""
     if component.lower() in EXC_COMPONENTS:
@@ -118,6 +122,17 @@ def classify(expr: str | None, *, static: bool = False, component: str = "") -> 
         if rank(best) > rank(worst): worst, why = best, bwhy
     if component.lower() in EXC_COMPONENTS and worst in ("WEAK_COPYLEFT_LIB", "STRONG_COPYLEFT", "PROPRIETARY_THIRD_PARTY"):
         return "PERMISSIVE", f"recorded exception: {EXC_COMPONENTS[component.lower()]['why_it_passes']}"
+    # An interpreter or a command our script EXECUTES is a separate program, reached across a
+    # process boundary. Copyleft governs the work it is combined into; it does not cross an
+    # exec. This is the same distinction already applied to build-time tools: bash is GPL-3.0
+    # and a shell script that runs under it is not thereby GPL. The class is recorded, not
+    # laundered — the real licence stays in the row so the notices and the audit can see it.
+    # UNKNOWN is deliberately absent from this list. Invoking something does not excuse being
+    # unable to say what it is; a licence we could not establish stays a failure however the
+    # component is reached.
+    if invoked and worst in ("WEAK_COPYLEFT_FILE", "WEAK_COPYLEFT_LIB", "STRONG_COPYLEFT",
+                             "NETWORK_COPYLEFT", "NUISANCE_CLAUSE", "PROPRIETARY_THIRD_PARTY"):
+        return "INVOKED_NOT_LINKED", f"{why or e} — executed as a separate process, not linked"
     return worst, why or e
 
 # ----------------------------------------------------------------------------- report
@@ -221,7 +236,7 @@ def _carried_licence(root: Path, lib: str) -> tuple[str, str]:
         if any(t in str(p).lower() for t in tokens):
             return detect_licence_text(p.read_text(errors="replace")), str(p.relative_to(root))
     if lib.startswith("libsymoneural"):
-        return "FSL-1.1-ALv2", "first-party"
+        return PRODUCT_LICENCE, "first-party"
     return "", ""
 
 def census_elf(rep: Report, unit: str, elf: Path, static_meta: Path | None):
@@ -238,7 +253,7 @@ def census_elf(rep: Report, unit: str, elf: Path, static_meta: Path | None):
         soname_stem = re.sub(r"\.so(\.\d+)*$", "", lib)
         if list(root.rglob(lib)) or any(p.name.startswith(soname_stem + ".so") for p in root.rglob(soname_stem + ".so*")):
             lic, src = _carried_licence(root, lib)
-            if lic == "FSL-1.1-ALv2": rep.component(unit, lib, "first-party", lic, "PERMISSIVE", "first-party", "carried in the unit"); continue
+            if lic == PRODUCT_LICENCE: rep.component(unit, lib, "first-party", lic, "PERMISSIVE", "first-party", "carried in the unit"); continue
             k, why = classify(lic, component=lib)
             rep.component(unit, lib, "carried", lic, k, why if lic else "carried library without a licence text beside it", f"carried in the unit → {src or 'no licence text found'}"); continue
         # 3. a system library → the Debian package's machine-readable copyright (merged /usr: resolve the real path first)
@@ -341,11 +356,11 @@ def flush_identifier_reviews(rep):
 
 def check_august(rep, unit, path: Path):
     mt = time.strftime("%Y-%m", time.gmtime(path.stat().st_mtime))
-    if mt == "2026-08": rep.finding(unit, "FAIL", "august", f"{path.name} mtime is August 2026")
+    if mt == "2026-08": rep.finding(unit, "FAIL", "august", f"{path.name} mtime is August 2026")  # gate-allow: no-august — this IS the August detector
     if path.suffix in (".md", ".json", ".txt"):
         for i, line in enumerate(path.read_text(errors="replace").splitlines(), 1):
-            if "2026-08" in line and not re.search(r"rule|bars|predates|fresh start|section 3\.2", line, re.I):
-                rep.finding(unit, "FAIL", "august", f"{path.name}:{i} carries an August 2026 date")
+            if "2026-08" in line and not re.search(r"rule|bars|predates|fresh start|section 3\.2", line, re.I):  # gate-allow: no-august — this IS the August detector
+                rep.finding(unit, "FAIL", "august", f"{path.name}:{i} carries an August 2026 date")  # gate-allow: no-august — detector message text
 
 def check_attribution(rep, notices: Path | None):
     text = notices.read_text(errors="replace").lower() if notices and notices.exists() else ""
@@ -371,8 +386,183 @@ def check_repo_history(rep, repo: Path):
         scan_bytes(rep, unit, f"{path}@{sha[:9]}", data)
         if len(data) < 4 << 20: scan_identifiers(unit, path, data.decode("utf-8", errors="replace"))
     rc, out, err, s = run(["git", "-C", str(repo), "log", "--format=%ci"])
-    if any(l.startswith("2026-08") for l in out.splitlines()): rep.finding(unit, "FAIL", "august", "commits dated August 2026 in history")
+    if any(l.startswith("2026-08") for l in out.splitlines()): rep.finding(unit, "FAIL", "august", "commits dated August 2026 in history")  # gate-allow: no-august — this IS the August detector
     rep.finding(unit, "INFO", "repo", f"{n} blobs scanned across all refs")
+
+# ----------------------------------------------------------------------------- script census
+# A unit made of shell and Python scripts has a real licence closure, and before this it had
+# none: no census applied to it, so every such unit came out "licence closure UNESTABLISHED"
+# and could never be released. The closure of a script is what it needs at run time — the
+# interpreter named in its shebang, the external commands it executes, and for Python the
+# distributions it imports. Those are derived here from the file, never from a manifest.
+_STDLIB = frozenset(getattr(sys, "stdlib_module_names", ()))
+_SH_KEYWORD = {"if","then","else","elif","fi","for","while","until","do","done","case","esac","in",
+               "function","select","time","coproc","return","break","continue","local","export",
+               "readonly","declare","typeset","shift","set","unset","eval","exec","trap","wait",
+               "echo","printf","read","cd","pwd","test","source","alias","unalias","let","shopt",
+               "true","false","exit","getopts","hash","type","ulimit","umask","jobs","kill","fg","bg",
+               "and","or","not","the","a","is","it","to","of","this","that","one","no","we","be"}
+# Debian copyright files use short names of their own; these are the ones this estate's
+# scripts actually reach. An unrecognised one is left alone and classify() decides.
+_DEB2SPDX = {"expat": "MIT", "mit": "MIT", "bsd-3-clause": "BSD-3-Clause", "bsd-2-clause": "BSD-2-Clause",
+             "isc": "ISC", "apache-2.0": "Apache-2.0", "public-domain": "CC0-1.0", "zlib": "Zlib",
+             "gpl-2+": "GPL-2.0-or-later", "gpl-2": "GPL-2.0-only", "gpl-3+": "GPL-3.0-or-later",
+             "gpl-3": "GPL-3.0-only", "lgpl-2.1+": "LGPL-2.1-or-later", "lgpl-2.1": "LGPL-2.1-only",
+             "lgpl-3+": "LGPL-3.0-or-later", "lgpl-2+": "LGPL-2.0-or-later",
+             "gpl-2+ with autoconf exception": "GPL-2.0-or-later WITH Autoconf-exception-2.0",
+             "gfdl-1.3+": "GFDL-1.3-or-later", "psf-2": "PSF-2.0", "python": "Python-2.0"}
+
+def _deb_licence(pkg: str) -> str:
+    """The licence a Debian package declares, as an SPDX expression where it maps cleanly."""
+    p = Path("/usr/share/doc") / pkg / "copyright"
+    if not p.is_file(): return ""
+    try: txt = p.read_text(errors="replace")
+    except Exception: return ""
+    # Debian declares a SHORT NAME after "License:" — "GPL-3+", "BSD-4-clause-UC",
+    # "GPL-3+ and BSD-4-clause-UC". Some packages instead inline the whole licence text on
+    # that line; python3.13-minimal does, and taking the line whole produced the component
+    # "The following text includes the Python license and licenses and" classed UNKNOWN,
+    # which failed the unit. Only short-name shapes are accepted here; prose falls through
+    # to a text detector below, so an unparsed file yields no licence rather than a wrong one.
+    SHORT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.+_-]*(?:\s+(?:and|or|with)\s+[A-Za-z0-9][A-Za-z0-9.+_-]*)*$")
+    # Debian declares a SHORT NAME after "License:" — "GPL-3+", "BSD-4-clause-UC". Some packages
+    # inline the whole licence text on that line instead; python3.13-minimal does, and taking the
+    # line whole produced the component "The following text includes the Python license and
+    # licenses and" classed UNKNOWN. Only short-name shapes are accepted.
+    SHORT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.+_-]*(?:\s+(?:and|or|with)\s+[A-Za-z0-9][A-Za-z0-9.+_-]*)*$")
+
+    # A copyright file's stanzas describe DIFFERENT FILES, not a conjunction. Taking the most
+    # restrictive across all of them made curl "OLDAP-2.8", the licence of one bundled piece,
+    # and failed a unit that merely runs curl. The package's own licence is the one attached to
+    # "Files: *"; everything else governs a subset we are not redistributing anyway.
+    main = ""
+    for para in re.split(r"\n\s*\n", txt):
+        if re.search(r"^Files:\s*\*\s*$", para, re.M):
+            m = re.search(r"^License:\s*(.+)$", para, re.M)
+            if m and SHORT.match(m.group(1).strip()):
+                main = m.group(1).strip(); break
+    if main:
+        return _DEB2SPDX.get(main.lower(), main)
+
+    ids = [m.strip() for m in re.findall(r"^License:\s*(.+)$", txt, re.M) if m.strip() and SHORT.match(m.strip())]
+    if not ids:
+        if re.search(r"PYTHON SOFTWARE FOUNDATION LICENSE|PSF LICENSE AGREEMENT", txt, re.I): return "PSF-2.0"
+        return detect_licence_text(txt)
+    # No "Files: *" stanza: the licence the file states most often is the package's own.
+    counts: dict[str, int] = {}
+    for raw in ids:
+        spdx = _DEB2SPDX.get(raw.lower(), raw)
+        counts[spdx] = counts.get(spdx, 0) + 1
+    return max(counts.items(), key=lambda kv: kv[1])[0]
+
+_dpkg_cache: dict[str, str] = {}
+def _providing_package(binary: str) -> str:
+    if binary in _dpkg_cache: return _dpkg_cache[binary]
+    rc, out, _, _ = run(["bash", "-lc", f"command -v {binary!r}"])
+    path = out.strip().splitlines()[0] if rc == 0 and out.strip() else ""
+    pkg = ""
+    if path and Path(path).exists():
+        real = str(Path(path).resolve())
+        for cand in (real, path):
+            rc2, out2, _, _ = run(["dpkg", "-S", cand])
+            if rc2 == 0 and ":" in out2:
+                pkg = out2.split(":", 1)[0].split(",")[0].strip(); break
+    _dpkg_cache[binary] = pkg
+    return pkg
+
+def _shell_commands(text: str) -> set[str]:
+    """Words in command position: line start, or after | ; & ( ` && || $( and the block keywords.
+
+    Quoted runs are removed first, ACROSS LINES. An embedded awk or jq program is a single
+    quoted string that happens to span several lines and to contain words in what looks like
+    command position; without this, `code = line` inside an awk program was read as the command
+    `code`, resolved to an installed editor, and failed the unit on an unstated licence. An
+    assignment is dropped too: `x=1` is not an invocation of `x`.
+    """
+    stripped = re.sub(r"'[^']*'", " ", text, flags=re.S)
+    stripped = re.sub(r'"[^"]*"', " ", stripped, flags=re.S)
+    found = set()
+    for m in re.finditer(r'(?:^|[|;&(`]|\$\(|\b(?:then|else|do|elif)\s)\s*([a-zA-Z][a-zA-Z0-9._+-]*)\s*(=?)', stripped, re.M):
+        w, assign = m.group(1), m.group(2)
+        if assign: continue
+        if w in _SH_KEYWORD or w.lower() in _SH_KEYWORD: continue
+        found.add(w)
+    return found
+
+def _python_imports(text: str) -> set[str]:
+    try:
+        import ast
+        tree = ast.parse(text)
+    except Exception:
+        return set()
+    mods = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            for al in n.names: mods.add(al.name.split(".")[0])
+        elif isinstance(n, ast.ImportFrom):
+            if n.level == 0 and n.module: mods.add(n.module.split(".")[0])
+    return mods
+
+def census_scripts(rep: Report, unit: str, root: Path, files: list[Path]):
+    """Derive the run-time closure of a unit made of scripts. Called once per unit."""
+    own = {f.stem for f in files} | {f.name for f in files}
+    interpreters, commands, pymods = set(), set(), set()
+    for f in files:
+        try: text = f.read_text(errors="replace")
+        except Exception: continue
+        first = text.split("\n", 1)[0]
+        if first.startswith("#!"):
+            sheb = first[2:].split()
+            for part in sheb:
+                b = Path(part).name
+                if b in ("env",) or part.startswith("-"): continue
+                interpreters.add(b); break
+        if f.suffix == ".py" or "python" in first:
+            pymods |= _python_imports(text)
+        if f.suffix in (".sh", ".bash") or re.search(r"#!.*\b(ba)?sh\b", first):
+            # Comments are prose, not commands. Left in, the phrase "exit code read after a
+            # pipeline" put the word `code` through `command -v`, which on this host resolves to
+            # an editor, whose package declares no parseable licence — so a sentence in a comment
+            # became an UNKNOWN component and failed the unit.
+            code_only = re.sub(r"(?m)(^|\s)#.*$", " ", text)
+            commands |= _shell_commands(code_only)
+    commands -= own | interpreters
+    seen_pkg = set()
+    for name in sorted(interpreters | commands):
+        pkg = _providing_package(name)
+        if not pkg:
+            if name in commands: continue          # not a program on this host: a function or a typo, not a dependency
+            rep.finding(unit, "REVIEW", "census", f"interpreter '{name}' is not provided by any installed package — closure unverified")
+            continue
+        if pkg in seen_pkg: continue
+        seen_pkg.add(pkg)
+        lic = _deb_licence(pkg)
+        klass, why = classify(lic or None, invoked=True, component=pkg)
+        rep.component(unit, pkg, "system", lic or "unstated", klass, why, f"invoked by {unit} scripts")
+    for mod in sorted(pymods):
+        if mod in _STDLIB:
+            continue
+        dist, lic = "", ""
+        try:
+            import importlib.metadata as im
+            for d, ms in (im.packages_distributions() or {}).items():
+                if d == mod: dist = ms[0]; break
+            if dist:
+                md = im.metadata(dist)
+                lic = md.get("License-Expression") or md.get("License") or ""
+                if not lic:
+                    for c in md.get_all("Classifier") or []:
+                        if c.startswith("License ::"): lic = c.rsplit("::", 1)[-1].strip(); break
+        except Exception:
+            pass
+        if not dist:
+            rep.finding(unit, "REVIEW", "census", f"python import '{mod}' resolves to no installed distribution — closure unverified")
+            continue
+        klass, why = classify(normalise(lic) or None, component=dist)
+        rep.component(unit, dist, "installed", normalise(lic) or "unstated", klass, why, f"imported by {unit} python")
+    if pymods & _STDLIB or any("python" in i for i in interpreters):
+        klass, why = classify("PSF-2.0", invoked=True, component="cpython")
+        rep.component(unit, "cpython", "system", "PSF-2.0", klass, why, f"standard library used by {unit}")
 
 # ----------------------------------------------------------------------------- main
 def main():
@@ -388,6 +578,7 @@ def main():
         if a.stage and a.stage.exists():
             for unit_dir in sorted(p for p in a.stage.iterdir() if p.is_dir()):
                 unit = unit_dir.name
+                scripts: list[Path] = []
                 for f in sorted(unit_dir.rglob("*")):
                     if not f.is_file(): continue
                     rel = f.relative_to(a.stage); arch = rel.parts[1] if len(rel.parts) > 2 else "-"
@@ -417,6 +608,13 @@ def main():
                                 rep.finding(unit, "REVIEW", "census", f"could not extract {f.name} for census: {ex}")
                             else:
                                 meta = next(iter(sorted(d.rglob("cargo-metadata.json"))), None)
+                                # Scripts inside the archive count exactly as scripts loose in
+                                # the stage do. Without this a unit made of shell and Python
+                                # censused fine unpacked and came out UNESTABLISHED the moment
+                                # it was packed — and packing is what the cutter requires, so
+                                # the only form that can actually be released was the form that
+                                # could not pass.
+                                inner_scripts: list[Path] = []
                                 for m in sorted(d.rglob("*")):
                                     if not m.is_file() or m.is_symlink():
                                         continue
@@ -429,15 +627,23 @@ def main():
                                         except Exception: continue
                                         if magic == b"\x7fELF":
                                             census_elf(rep, unit, m, meta)
+                                        elif m.suffix in (".py", ".sh", ".bash") or magic[:2] == b"#!":
+                                            inner_scripts.append(m)
                                 if any(x.name == "package.json" for x in d.rglob("package.json")):
                                     census_node_tree(rep, unit, d)
+                                if inner_scripts and not rep.unit(unit)["components"]:
+                                    census_scripts(rep, unit, d, inner_scripts)
                     elif f.stat().st_size > 0 and f.open("rb").read(4) == b"\x7fELF":
                         census_elf(rep, unit, f, f.parent / "cargo-metadata.json"); scan_path_rules(rep, unit, str(rel), top=True)
                     else:
+                        if f.suffix in (".py", ".sh", ".bash") or (f.stat().st_size > 2 and f.open("rb").read(2) == b"#!"):
+                            scripts.append(f)
                         scan_path_rules(rep, unit, str(rel), top=True)
                         if f.stat().st_size < BIG:
                             data = f.read_bytes(); scan_bytes(rep, unit, str(rel), data)
                             if len(data) < 4 << 20: scan_identifiers(unit, str(rel), data.decode("utf-8", errors="replace"))
+                if scripts and not rep.unit(unit)["components"]:
+                    census_scripts(rep, unit, unit_dir, scripts)
                 if not rep.unit(unit)["components"] and unit not in ("source", "symoneural-learn-hostrun", "noncopyleft-image-policy"):
                     rep.finding(unit, "REVIEW", "census", "no dependency census could be derived for this unit — licence closure UNESTABLISHED")
             flush_trademark_reviews(rep); flush_identifier_reviews(rep)
