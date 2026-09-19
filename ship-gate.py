@@ -30,7 +30,7 @@ for cname, c in CLASSES.items():
         ID2CLASS.setdefault(i.lower(), cname)
 NEUTRALISE = {e.lower() for e in CLASSES["STRONG_COPYLEFT"]["exceptions_that_neutralise"]}
 USE_KW = [k.lower() for k in CLASSES["USE_RESTRICTED"].get("keywords", [])]
-RANK = ["PERMISSIVE", "INVOKED_NOT_LINKED", "WEAK_COPYLEFT_FILE", "WEAK_COPYLEFT_LIB", "NUISANCE_CLAUSE", "PROPRIETARY_THIRD_PARTY",
+RANK = ["FIRST_PARTY", "PERMISSIVE", "INVOKED_NOT_LINKED", "WEAK_COPYLEFT_FILE", "WEAK_COPYLEFT_LIB", "NUISANCE_CLAUSE", "PROPRIETARY_THIRD_PARTY",
         "USE_RESTRICTED", "UNKNOWN", "STRONG_COPYLEFT", "NETWORK_COPYLEFT"]
 PROFILES = POLICY.get("profiles", {})
 # The verdict depends on WHERE a thing is placed, which is the placement procedure itself. A
@@ -117,6 +117,22 @@ def classify(expr: str | None, *, static: bool = False, invoked: bool = False, c
         return "PERMISSIVE", f"recorded exception ({ex['component']}): {ex['why_it_passes']}"
     e = normalise(expr)
     if not e or e.lower() in ("none", "null", "noassertion", "unknown"): return "UNKNOWN", "no licence expression"
+    # OUR OWN LICENCE, ON OUR OWN WORK.
+    #
+    # The gate had no notion of it and failed the product either way: the superseded
+    # FSL-1.1-ALv2 sits in USE_RESTRICTED, and every LicenseRef-* falls to
+    # PROPRIETARY_THIRD_PARTY. A recipe declaring the licence the whole tree ships under could
+    # not pass the gate that tree's releases go through.
+    #
+    # Only the two licences the policy NAMES are this class. A third party shipping under an
+    # FSL or a LicenseRef- keeps its own classification: the exemption is for our licence, not
+    # for the shape of the string.
+    _ours = {str(POLICY.get("product_licence", "")).lower(),
+             str(POLICY.get("open_source_licence", "")).lower(),
+             "licenseref-symonsaysllc-proprietary-1.0",
+             "licenseref-symonsaysllc-opensource-1.0"} - {""}
+    if e.lower() in _ours:
+        return "FIRST_PARTY", "the estate's own licence"
     low = e.lower()
     for kw in USE_KW:
         if kw in low: return "USE_RESTRICTED", f"keyword '{kw}' in licence text"

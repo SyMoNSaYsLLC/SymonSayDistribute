@@ -73,6 +73,12 @@
       ],
       "note": "Fine to ship. Every component in this class MUST appear in THIRD-PARTY-NOTICES with name, version and licence; Apache-2.0 NOTICE files must be reproduced."
     },
+    "FIRST_PARTY": {
+      "verdict": "PASS",
+      "requires_attribution": false,
+      "why": "Our own licence, on our own work. The gate had no notion of it: the superseded FSL-1.1-ALv2 sits in USE_RESTRICTED and every LicenseRef-* falls to PROPRIETARY_THIRD_PARTY, so the product's own licence failed the product's own gate either way. Only the licences named in product_licence and open_source_licence are this class; a third party shipping under FSL or a LicenseRef- is still classed as what it is.",
+      "ids": []
+    },
     "INVOKED_NOT_LINKED": {
       "verdict": "PASS",
       "requires_attribution": false,
@@ -481,5 +487,6 @@
         "WEAK_COPYLEFT_FILE": "PASS"
       }
     }
-  }
+  },
+  "first_party_licence_rule": "A component declaring the estate's own licence is FIRST_PARTY and passes. Everything else declaring a LicenseRef- or FSL licence keeps its third-party classification: the exemption is for OUR licence, not for the shape of the string."
 }
