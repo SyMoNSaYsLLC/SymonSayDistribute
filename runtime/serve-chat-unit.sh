@@ -34,8 +34,8 @@
 set -u
 
 ENGINE_VENV=${SYM_CHAT_ENGINE_VENV:-$HOME/.venvs/vllm-0271-cu130}
-MODELS_DIR=${SYM_MODELS_DIR:-$HOME/symoneural-models}
-MODEL_DIR=${SYM_CHAT_MODEL_DIR:-$MODELS_DIR/symon-chat}
+MODELS_DIR=${SYM_MODELS_DIR:-/mnt/models}   # production store, /dev/nvme0n1p2
+MODEL_DIR=${SYM_CHAT_MODEL_DIR:-$MODELS_DIR/symon}
 SERVED_NAME=${SYM_CHAT_SERVED_NAME:-symon-ai}
 PORT=${SYM_CHAT_PORT:-8802}
 RUN_DIR=${SYM_RUN_DIR:-$HOME/symoneural-run}
