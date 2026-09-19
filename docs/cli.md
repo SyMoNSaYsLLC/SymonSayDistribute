@@ -3,6 +3,10 @@
 Everything you type, in one place: the unit launchers and the tools. Each entry names its
 source file, so the code is one hop away.
 
+Every command here describes something **running or built and staged**, except
+`symoneural-image`, which is marked where it appears: no such binary is present on the
+reference host, so that entry is a **direction** until it is built or withdrawn.
+
 ## Contents
 
 - [Units](#units)
@@ -44,6 +48,11 @@ runtime/serve-chat-unit.sh                     # one engine, one configuration, 
 ```
 
 ### `symoneural-image` — the image unit worker (release binary, x86_64 CUDA)
+
+**A direction, not a running unit.** No `symoneural-image` binary is present on the reference
+host and nothing in this repository binds its port, so the commands below describe the worker
+as designed, not as installed. Recorded rather than removed: the design is still wanted, and a
+claim that quietly disappears is worse than one marked untrue.
 
 A launcher that puts the unit's own library on the loader path and runs the worker.
 

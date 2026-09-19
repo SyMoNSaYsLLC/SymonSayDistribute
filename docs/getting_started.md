@@ -1,8 +1,9 @@
 # Getting started
 
-What you get, what must already exist, two ways to install, and the first request. Everything
-on this page was run on the reference host on 2026-09-18; where a step depends on your
-hardware it says so.
+What you get, what must already exist, two ways to install, and the first request. Every step
+on this page was **run** on the reference host on 2026-09-18; where a step depends on your
+hardware it says so. The one row that is a **direction** rather than a running unit — the
+image unit — is marked as such in the table below.
 
 ## Contents
 
@@ -21,8 +22,8 @@ hardware it says so.
 |---|---|---|---|
 | gateway | the `/v1` Messages-dialect front: credential, model cards, relay | 9001 | wheel (`py3-none-any`) |
 | chat unit | the engine holding the weights on the GPU | 8802 | binary (x86_64, CUDA) and the bring-up scripts |
-| web | the first-party interface: chat, code, work, models, rack, settings | 8812 | source (build with the pinned lockfile) |
-| image unit | text-to-image worker with the CUDA backend | 8809 | binary (x86_64, CUDA) |
+| web | the first-party interface: chat, code, work, models, rack, settings | 3000 | source (build with the pinned lockfile) |
+| image unit | text-to-image worker with the CUDA backend — **a direction**, see [cli.md](cli.md#symoneural-image--the-image-unit-worker-release-binary-x86_64-cuda) | 8809 | not present on the reference host |
 | api native | the C library behind the control plane | — | shared library (x86_64, aarch64, armv7) |
 
 Weights are **not** in any release. See [Before you start](#before-you-start).
@@ -117,7 +118,7 @@ before the engine is up:
 ```sh
 symoneural-chat-engine &                         # 8802: loads the checkpoint (about a minute on the reference host)
 symoneural-gateway &                             # 9001
-cd web && PORT=8812 HOSTNAME=127.0.0.1 node server.js &   # 8812, from the standalone build
+cd web && PORT=3000 HOSTNAME=127.0.0.1 node server.js &   # 3000, from the standalone build
 ```
 
 `runtime/bringup-chat-unit.sh` is the ladder for the recorded substitution engine; it tries

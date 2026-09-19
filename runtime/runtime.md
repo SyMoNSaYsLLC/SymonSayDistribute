@@ -2,6 +2,9 @@
 
 Scripts that bring the `chat` unit up **on this host**, outside BitBake.
 
+This page describes what is **running**: the ladder below is the one that brought the unit
+up on the reference host, and the measured figures in it were taken from that run.
+
 ## What this directory is, stated plainly
 
 The product is the estate's own runtime. These scripts run an **acquired upstream

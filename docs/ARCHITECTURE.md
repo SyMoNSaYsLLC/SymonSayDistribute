@@ -18,7 +18,7 @@ operator's edge proxy and tunnel — never an interface binding.
                                 │  https, via the operator's edge proxy
                                 ▼
    ┌───────────────────────── host ───────────────────────────────────────┐
-   │  web UI        127.0.0.1:8812   the first-party interface             │
+   │  web UI        127.0.0.1:3000   the first-party interface             │
    │      │ /gw/*                                                          │
    │      ▼                                                                │
    │  gateway       127.0.0.1:9001   /v1 dialect · credential · model cards │

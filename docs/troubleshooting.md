@@ -25,8 +25,9 @@ for activations") and exits: `Error: Num GPU blocks is 0. This means there is no
 memory. Either reduce the memory amount/utilization/context size or disable PagedAttention.`
 
 **Cause.** With no explicit KV-cache size, the planner takes a fraction of the memory it
-believes available; after 13.1 GiB of weights on a 16 GiB card that leaves nothing at its
-default fraction.
+believes available; after 12.82 GiB of weights on a 15.92 GiB card that leaves nothing at its
+default fraction. That weight figure is the `model_mib=13123` in the log above: 13123 MiB is
+12.82 GiB, and dividing it by 1000 instead of 1024 is what used to print 13.1 here.
 
 **Fix.** Size the KV cache explicitly: `--pa-memory-mb 1800 --max-seqs 2` holds two 16k
 contexts on the reference host (about 49 KB per token for this checkpoint). The launcher's

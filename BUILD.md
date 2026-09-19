@@ -2,6 +2,9 @@
 
 Two ways to build this, and they answer different questions.
 
+This page describes what is **built**: both paths below have been run on the reference host,
+and every measured figure names the run it came from rather than an estimate.
+
 | Path | Answers | Time | Use when |
 |---|---|---|---|
 | **Host build** | "does it run here, now?" | minutes | developing, proving a change |
@@ -18,7 +21,7 @@ substitutes for the other, and a release needs both.
 |---|---|---|
 | Gateway | `127.0.0.1:9001` | the `/v1` Messages dialect: models, messages, count_tokens |
 | Chat unit | `127.0.0.1:8802` | the engine behind the gateway |
-| Web interface | `127.0.0.1:8812` | overview, registry, rack, three surfaces |
+| Web interface | `127.0.0.1:3000` | overview, registry, rack, three surfaces |
 
 Three models, one per client surface: `symon-sonnet`, `symon-opus`, `symon-fable`.
 
@@ -106,7 +109,7 @@ naming the missing path. It does not default to open.
 cd web
 pnpm install           # see §6: the framework is not acquired
 pnpm build
-pnpm start             # 127.0.0.1:8812
+pnpm start             # 127.0.0.1:3000
 ```
 
 ### 3.4 Prove it

@@ -4,6 +4,10 @@ How a release is staged, gated and cut; how assets are named; what a release not
 contain; how an operator installs one. A release is a commit: the tag, the assets and the
 notes all name the same HEAD.
 
+This page describes a process that is **running**: releases have been cut this way, and the
+tags in this repository are its output. It is the procedure, not an inventory — `git tag`
+is the inventory, because a list written here goes stale the moment the next tag lands.
+
 ## Contents
 
 - [The stage](#the-stage)

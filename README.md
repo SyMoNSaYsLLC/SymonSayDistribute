@@ -6,7 +6,7 @@ behind one API, with nothing leaving the host.
 ```
 client  ->  127.0.0.1:9001   gateway      the /v1 dialect, the credential, the registry
             127.0.0.1:8802   chat unit    the engine holding the weights
-            127.0.0.1:8812   web          the first-party interface
+            127.0.0.1:3000   web          the first-party interface
 ```
 
 | Model | Surface | Tier |

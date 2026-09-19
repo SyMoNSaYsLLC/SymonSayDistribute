@@ -2,6 +2,9 @@
 
 What the product needs to be told, and nothing else.
 
+This page describes what is **running**: every variable below is read by code in this
+repository, and one that no longer is gets deleted rather than documented.
+
 ## The rule
 
 `config/` holds **declarations the product reads**. It does not hold application state
