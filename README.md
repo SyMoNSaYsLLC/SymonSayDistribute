@@ -63,7 +63,7 @@ This is one of three, and the split is the same on disk as it is here.
 
 | Repository | Holds | Licence of what it ships |
 |---|---|---|
-| **`SymonSayDistribute`** | the runtimes, one branch each, each cutting its own releases | FSL-1.1-ALv2, and no copyleft |
+| **`SymonSayDistribute`** | the runtimes, one branch each, each cutting its own releases | SymonSaysLLC Proprietary License 1.0, and no copyleft |
 | `SymonSaySource` | what we build from: pins, licences, provenance — never the source bytes | tracking only; ships nothing |
 | `SymonSayOpen` | the copyleft builds | MIT metadata; the outputs stay copyleft |
 
@@ -73,7 +73,7 @@ easier to believe when the two sides were never in the same tree.
 
 ## Licence
 
-Every branch here ships under FSL-1.1-ALv2: source-available now, Apache-2.0 two years after
+Every branch here ships under SymonSaysLLC Proprietary License 1.0: source-available now, Apache-2.0 two years after
 each release. See the `LICENSE` file on any runtime branch. `SymonSayOpen` is deliberately
 MIT instead; different licences make the split a statement rather than a directory
 convention.
@@ -84,8 +84,8 @@ These four trees carry **two** licences between them, and that is the point of t
 
 | Licence | Where | Why there |
 |---|---|---|
-| `FSL-1.1-ALv2` | `SymonSayDistribute` | the product: source-available now, Apache-2.0 two years after each release |
-| `MIT` | `SymonSayOSS`, `SymonSayOpen`, `SymonSaySource` | work meant to combine freely — with copyleft, with anyone's code, with itself |
+| `SymonSaysLLC Proprietary License 1.0` | `SymonSayDistribute` | the product: source-available now, Apache-2.0 two years after each release |
+| `SymonSaysLLC Proprietary License 1.0` | `SymonSayOSS`, `SymonSayOpen`, `SymonSaySource` | work meant to combine freely — with copyleft, with anyone's code, with itself |
 
 Two rules follow, and they are not the same rule:
 
