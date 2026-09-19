@@ -62,6 +62,7 @@ KNOWN: dict[str, dict[str, Any]] = {
     "symonrag":     {"prefix": "/api/symonrag",     "token_env": "SYM_RAG_TOKEN"},
     "symonlora":    {"prefix": "/api/symonlora",    "token_env": "SYM_LORA_TOKEN"},
     "symonengine":  {"prefix": "/api/symonengine",  "token_env": "SYM_ENGINE_TOKEN"},
+    "symonimage":   {"prefix": "/api/symonimage",   "token_env": "SYM_IMAGE_TOKEN"},
     # The gateway speaks the public Messages dialect, whose paths are fixed by its clients and
     # are not ours to prefix. Its credential is a FILE, named on the board, never an env var.
     "gateway":      {"prefix": "/v1",               "token_env": None, "health": "/health"},
