@@ -103,7 +103,8 @@ Deciding what runs next, and sending it.
 
 ## D. Flow control — `symonpayload/flow.py`
 
-**NAMED AND SOURCED, NOT BUILT.** Needs measured latency and token rate.
+**BUILT.** The measurement it waited for was taken on 2026-09-19: 6.8 tok/s at concurrency 1,
+11.2 aggregate at 2, latency p50 19.02 s.
 
 What stops the estate from accepting work it cannot serve.
 
@@ -165,12 +166,20 @@ Running the same thing many ways on purpose, and recording what happened.
 | A. Admission | 8 | **Built**, tested |
 | B. Batch formation | 12 | **Built**, tested |
 | C. Scheduling and dispatch | 13 | Named and sourced, not built |
-| D. Flow control | 8 | Named and sourced, not built |
+| D. Flow control | 8 | **Built**, tested, against a real measurement |
 | E. Residency and buffers | 9 | Named and sourced, not built |
 | F. Sweeps and evaluation | 10 | **Built**, tested |
-| **Total** | **60** | **30 built, 30 named** |
+| **Total** | **60** | **38 built, 22 named** |
 
-## Why C, D and E are not built
+## Why C and E are not built
+
+D is built. The measurement it was waiting for was taken once the card came free: a 60-second
+benchmark through the gateway at 32k context. The headline is the ratio — concurrency 2 bought
+**1.65x, not 2x**, and each stream slowed from 6.84 to 5.6 tok/s. A throttle written against
+the assumption of linear scaling would have climbed into a configuration where everyone waits
+longer for no more work done.
+
+## Why C and E are still not built
 
 They need **measured** inputs this host cannot supply while the engine holds the card: observed
 latency, observed token rate, per-device residency. `AdaptiveThrottle` moving a ceiling on an
