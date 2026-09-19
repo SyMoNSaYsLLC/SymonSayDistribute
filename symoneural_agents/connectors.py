@@ -31,58 +31,76 @@ from typing import Any
 
 from .tools import Tool, ToolError
 
-# Where each component answers. Every one is a first-party surface on this host.
-ENDPOINTS = {
-    "board":     os.environ.get("SYM_BOARD_URL",     "http://127.0.0.1:8811"),
-    "ravencalc": os.environ.get("SYM_RAVENCALC_URL", "http://127.0.0.1:8801"),
-    "gateway":   os.environ.get("SYM_GW_URL",        "http://127.0.0.1:9001"),
-    "store":     os.environ.get("SYM_STORE_URL",     "http://127.0.0.1:8812"),
-    "symonscope": os.environ.get("SYM_SCOPE_URL",    "http://127.0.0.1:8815"),
-}
-
-# The token each one wants, by NAME. Read at call time, never passed as an argument.
-TOKEN_ENV = {
-    "board":     "SYM_BOARD_TOKEN",
-    "ravencalc": "SYM_RAVENCALC_TOKEN",
-    "gateway":   None,          # the gateway reads a key FILE, named on the board
-    "store":     "SYM_STORE_TOKEN",
-    "symonscope": "SYM_SCOPE_TOKEN",
-}
+# EVERYTHING GOES THROUGH THE FABRIC. Garrett, 2026-09-19: all symon component wiring routes
+# through the symoneural-adaptive-fabric.
+#
+# This file used to hold a table of five endpoints and five token variables, which meant this
+# process had to hold every credential it might ever use. It now holds exactly one: the
+# fabric's. A caller names a component and a path; the fabric knows where that component is
+# (from /models/control.board) and attaches its key from its own environment.
+#
+# Two things follow that are worth more than the tidiness. An agent process that is compromised
+# cannot leak a credential it never had. And a port change is one edit on the board rather than
+# an edit here — this file no longer knows or cares what port anything is on.
+FABRIC = os.environ.get("SYM_FABRIC_URL", "http://127.0.0.1:8816")
+FABRIC_TOKEN_ENV = "SYM_FABRIC_TOKEN"
 
 
 def _call(component: str, path: str, method: str = "GET", body: dict | None = None,
           timeout: float = 20.0) -> Any:
-    base = ENDPOINTS.get(component)
-    if not base:
-        raise ToolError(f"no endpoint known for {component}")
-    url = base.rstrip("/") + path
-    headers = {"accept": "application/json"}
-    env = TOKEN_ENV.get(component)
-    if env:
-        tok = os.environ.get(env, "").strip()
-        if not tok:
-            raise ToolError(
-                f"{component} needs {env} and it is not set. The token is read here from the "
-                f"environment and is never accepted as an argument.")
-        headers["authorization"] = "Bearer " + tok
-    data = json.dumps(body).encode() if body is not None else None
-    if data is not None:
-        headers["content-type"] = "application/json"
-    req = urllib.request.Request(url, data=data, method=method, headers=headers)
+    """Reach another component THROUGH THE FABRIC. This process holds no component keys.
+
+    The far end's answer is returned unwrapped, because a tool result is what the model reads
+    and it should not have to understand the fabric's envelope to read it. What the fabric adds
+    — where the call actually went — is put on the ToolError when something fails, which is the
+    moment anybody wants it.
+    """
+    tok = (os.environ.get(FABRIC_TOKEN_ENV) or "").strip()
+    if not tok:
+        raise ToolError(
+            f"the fabric needs {FABRIC_TOKEN_ENV} and it is not set. Every component is reached "
+            f"through it, so this one variable is all this process needs — and all it can leak.")
+    payload = json.dumps({"component": component, "path": path, "method": method,
+                          "body": body, "timeout": timeout}).encode()
+    req = urllib.request.Request(
+        FABRIC.rstrip("/") + "/api/fabric/call", data=payload, method="POST",
+        headers={"content-type": "application/json", "accept": "application/json",
+                 "authorization": "Bearer " + tok})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read() or b"null")
+        with urllib.request.urlopen(req, timeout=timeout + 10) as r:
+            env = json.loads(r.read() or b"null")
     except urllib.error.HTTPError as e:
         detail = ""
         try:
             detail = json.loads(e.read()).get("detail", "")
         except Exception:
             pass
-        raise ToolError(f"{component} answered {e.code}: {detail or e.reason}")
+        raise ToolError(f"the fabric declined to route to {component}: {detail or e.reason}")
     except urllib.error.URLError as e:
-        raise ToolError(f"{component} at {base} is not answering: {e.reason}")
+        raise ToolError(f"the fabric at {FABRIC} is not answering: {e.reason}. Nothing can be "
+                        f"reached without it — that is the cost of one place holding the keys.")
     except Exception as e:
-        raise ToolError(f"{component}: {type(e).__name__}: {e}")
+        raise ToolError(f"fabric: {type(e).__name__}: {e}")
+
+    status = env.get("status")
+    if not isinstance(status, int) or not 200 <= status < 300:
+        raise ToolError(f"{component} answered {status} at {env.get('routed_to')}: "
+                        f"{str(env.get('body'))[:200]}")
+    return env.get("body")
+
+
+def _fabric_get(path: str, timeout: float = 20.0) -> Any:
+    """Ask the fabric about itself — the wiring table, or what is reachable."""
+    tok = (os.environ.get(FABRIC_TOKEN_ENV) or "").strip()
+    if not tok:
+        raise ToolError(f"the fabric needs {FABRIC_TOKEN_ENV} and it is not set")
+    req = urllib.request.Request(FABRIC.rstrip("/") + path, headers={
+        "accept": "application/json", "authorization": "Bearer " + tok})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read() or b"null")
+    except Exception as e:
+        raise ToolError(f"the fabric at {FABRIC} did not answer {path}: {e}")
 
 
 # Each connector below is reached AS A TOOL, inside a run, not as a route of its own. That is
@@ -219,8 +237,13 @@ CONNECTORS: list[Tool] = [
 
 
 def connectors() -> list[dict]:
-    """Every wire between components, enumerated. This is what makes the estate's own
-    connections visible rather than implicit."""
+    """Every wire between components, enumerated.
+
+    The endpoint and the token variable are no longer known here — the fabric owns them, and
+    asking it is the point. If the fabric is not answering this reports that rather than
+    printing a table it cannot stand behind, because a wiring list that keeps working when the
+    wiring is down is a list that is lying.
+    """
     by_tool = {
         "board_settings": "board", "board_status": "board", "board_check": "board",
         "model_kv_cache": "ravencalc", "model_budget": "ravencalc",
@@ -228,26 +251,35 @@ def connectors() -> list[dict]:
         "estate_survey": "symonscope", "estate_layers": "symonscope",
         "estate_live": "symonscope",
     }
-    return [{"tool": t.name, "component": by_tool.get(t.name, "?"),
-             "endpoint": ENDPOINTS.get(by_tool.get(t.name, ""), ""),
-             "token_variable": TOKEN_ENV.get(by_tool.get(t.name, "")),
-             "mutates": t.mutates, "description": t.description}
-            for t in CONNECTORS]
+    try:
+        table = {c["component"]: c for c in _fabric_get("/api/fabric/components")["components"]}
+        err = None
+    except ToolError as e:
+        table, err = {}, str(e)
+    rows = []
+    for tool in CONNECTORS:
+        comp = by_tool.get(tool.name, "?")
+        c = table.get(comp, {})
+        rows.append({"tool": tool.name, "component": comp,
+                     "via": "fabric", "fabric": FABRIC,
+                     "endpoint": c.get("base"), "token_variable": c.get("token_env"),
+                     "token_set": c.get("token_set"),
+                     "mutates": tool.mutates, "description": tool.description,
+                     **({"fabric_error": err} if err else {})})
+    return rows
 
 
 def reachable() -> list[dict]:
-    """Which components actually answer, right now. A connector to something that is not
-    running is a wire to nowhere, and saying so is more useful than a timeout later."""
-    out = []
-    for name, base in ENDPOINTS.items():
-        path = {"gateway": "/health", "board": "/api/board/health",
-                "ravencalc": "/api/ravencalc/health", "store": "/api/store/health",
-                "symonscope": "/api/symonscope/health"}.get(name, "/health")
-        try:
-            with urllib.request.urlopen(base.rstrip("/") + path, timeout=4) as r:
-                out.append({"component": name, "endpoint": base, "up": r.status == 200,
-                            "status": r.status})
-        except Exception as e:
-            out.append({"component": name, "endpoint": base, "up": False,
-                        "status": type(e).__name__})
-    return out
+    """Which components answer, right now, as the fabric sees them.
+
+    Asked of the fabric rather than probed here on purpose: this process no longer knows where
+    anything is, and a second opinion assembled from a stale local table would be worse than no
+    opinion. If the fabric is down, everything is unreachable from here and that is the honest
+    answer rather than a per-component guess.
+    """
+    try:
+        return _fabric_get("/api/fabric/reachable")["components"]
+    except ToolError as e:
+        return [{"component": "fabric", "endpoint": FABRIC, "up": False, "status": str(e),
+                 "note": "every component is reached through the fabric, so nothing is "
+                         "reachable while it is down"}]

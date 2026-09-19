@@ -36,13 +36,34 @@ def test_tools_are_declared_in_the_dialect_shape():
         assert set(("name", "description", "input_schema")) <= set(t)
 
 
-def test_connectors_name_every_wire_and_its_far_end():
+def test_connectors_name_every_wire_and_how_it_is_routed():
     d = C.get("/api/agents/connectors", headers=AUTH).json()
     assert d["connectors"], "no wires enumerated"
     for c in d["connectors"]:
-        assert c["component"] != "?" and c["endpoint"]
-    # reachability is measured, not assumed
-    assert {r["component"] for r in d["reachable"]} >= {"board", "gateway", "ravencalc"}
+        assert c["component"] != "?", "a wire that does not name its component"
+        # The endpoint is deliberately NOT asserted. Since every wire routes through the
+        # fabric, this process no longer knows where anything is — the fabric does. Asserting
+        # an endpoint here would only pass by reintroducing the local table this change
+        # removed, which is the whole point of the change.
+        assert c["via"] == "fabric" and c["fabric"]
+
+
+def test_this_process_holds_one_credential_and_it_is_the_fabrics():
+    import symoneural_agents.connectors as K
+    assert not hasattr(K, "ENDPOINTS"), "a local endpoint table is back"
+    assert not hasattr(K, "TOKEN_ENV"), "a local token table is back"
+    assert K.FABRIC_TOKEN_ENV == "SYM_FABRIC_TOKEN"
+
+
+def test_reachability_is_answered_by_the_fabric_or_says_it_cannot_be():
+    d = C.get("/api/agents/connectors", headers=AUTH).json()
+    rows = d["reachable"]
+    assert rows
+    # Either the fabric answered for every component, or it is down and says so plainly —
+    # never a per-component guess assembled from a table this process no longer keeps.
+    assert all("component" in r for r in rows)
+    if len(rows) == 1 and rows[0]["component"] == "fabric":
+        assert rows[0]["up"] is False and "while it is down" in rows[0]["note"]
 
 
 def test_a_tool_that_does_not_exist_is_refused_before_the_run_starts():

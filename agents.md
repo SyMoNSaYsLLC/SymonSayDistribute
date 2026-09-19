@@ -99,6 +99,21 @@ never into its files. That is the whole definition, and it is deliberately narro
 component has no endpoint for something, the connector cannot do it, and the answer is to build
 the endpoint rather than to reach around it.
 
+**Every connector routes through the fabric.** Garrett, 2026-09-19: all symon component wiring
+routes through the symoneural-adaptive-fabric. This file used to hold five endpoints and five
+token variables, which meant this process had to hold every credential it might ever use. It
+now holds exactly one — the fabric's — and names a component rather than an address.
+
+Two things follow that matter more than the tidiness. An agent process that is compromised
+cannot leak a credential it never had. And a port change is one edit on `/models/control.board`
+rather than an edit here: this file no longer knows or cares what port anything is on.
+
+The cost is honest and stated: nothing is reachable while the fabric is down, and `reachable()`
+says exactly that rather than guessing per component from a table this process no longer keeps.
+
+Verified live: an agent process holding only `SYM_FABRIC_TOKEN` reached symonscope through the
+fabric and got 13 units back.
+
 It makes the estate's wiring enumerable. `GET /api/agents/connectors` lists every wire with its
 component, endpoint and token variable, and whether the far end is answering — because a
 connector to something that is not running is a wire to nowhere, and saying so beats a timeout
