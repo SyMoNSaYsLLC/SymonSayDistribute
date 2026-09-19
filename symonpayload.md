@@ -116,6 +116,27 @@ unbuilt routes asserted to be 404 so a stub cannot appear without a test failing
 
     cd /mnt/SymonSayDistribute/symonpayload && python3 -m pytest tests/ -q
 
+## Built: sweeps and evaluation — `symonpayload/sweep.py`
+
+`ConfigMatrix` `Grid` `MatrixEvaluator` `SweepRunner` `RunMatrix` `JobPool` `BulkRunner`
+`EvalSuite`, plus the instantiation and quantisation matrices, which are `ConfigMatrix` over
+different axes rather than three separate ideas.
+
+**A sweep's danger is not failing, it is succeeding enormously.** Four axes of five values is
+625 runs, and nothing about writing that down looks like 625. So a matrix states its size
+before anything runs and refuses one larger than a limit the caller has to name — a default cap
+would be somebody else deciding how much of the card's day to spend.
+
+**Failures are kept.** Every cell holds its configuration and its outcome, including the ones
+that crashed, because *"these four combinations all failed"* is the most useful thing a sweep
+produces and it is the first thing a summary of the winner throws away. `best()` refuses when
+everything failed rather than returning nothing, and says the failures are still there.
+
+An `EvalSuite` expectation is a **predicate, not an expected value** — most things worth
+evaluating are not equality: *is shorter than the input*, *cites a source*, *does not name a
+competitor*. A suite that can only check equality quietly becomes a suite of the easy things.
+A suite with no cases is refused, because it would always pass.
+
 ## Not built yet
 
 Four modules are named in [NAMES.md](NAMES.md) with their sources recorded, and have no code:

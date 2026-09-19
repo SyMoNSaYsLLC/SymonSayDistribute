@@ -139,7 +139,7 @@ bookkeeping around it.
 
 ## F. Sweeps and evaluation — `symonpayload/sweep.py`
 
-**NAMED AND SOURCED, NOT BUILT.** Buildable without measurement; not started.
+**BUILT.** Code and tests on disk. It needed no measurement, which is why it went first of the four.
 
 Running the same thing many ways on purpose, and recording what happened.
 
@@ -167,8 +167,8 @@ Running the same thing many ways on purpose, and recording what happened.
 | C. Scheduling and dispatch | 13 | Named and sourced, not built |
 | D. Flow control | 8 | Named and sourced, not built |
 | E. Residency and buffers | 9 | Named and sourced, not built |
-| F. Sweeps and evaluation | 10 | Named and sourced, not built |
-| **Total** | **60** | **20 built, 40 named** |
+| F. Sweeps and evaluation | 10 | **Built**, tested |
+| **Total** | **60** | **30 built, 30 named** |
 
 ## Why C, D and E are not built
 
@@ -177,7 +177,7 @@ latency, observed token rate, per-device residency. `AdaptiveThrottle` moving a 
 invented number is the "number produced from an assumption" that ravencalc exists to refuse.
 Built against guesses they would pass their own tests and be wrong on the machine.
 
-F needs no measurement and is simply not started. It is the cheapest of the four to do next.
+F is built. It needed no measurement, which is exactly why it was the one that could be.
 
 Every one of the forty has its licence already settled — same sources, same verdict,
 SymonSayDistribute under the proprietary licence — so none of them is blocked on a placement
