@@ -108,3 +108,25 @@ procedure applied at run time.
 
 A plugin may not take a name the estate already uses. Silently overriding a connector would let
 a plugin redirect a tool an agent already trusts.
+
+## Over HTTP
+
+Nine routes on `127.0.0.1:8813`, the port `/models/control.board` assigns to `agents`. Health
+is public; everything else needs `SYM_AGENTS_TOKEN`, and an unset token closes the service
+rather than opening it.
+
+    GET    /api/agents/health                 public; answers before anything is configured
+    GET    /api/agents/tools                  the registry: every tool that may be granted
+    GET    /api/agents/connectors             every wire, with whether the far end answers
+    GET    /api/agents/plugins                the manifests found, and whether each is enabled
+    POST   /api/agents/runs                   start a run under a grant and a set of bounds
+    GET    /api/agents/runs                   the runs, filterable by `?state=`
+    GET    /api/agents/runs/{run_id}          one run: its grant, bounds, steps and result
+    POST   /api/agents/runs/{run_id}/stop     stop a run; a stopped run keeps its transcript
+    DELETE /api/agents/runs                   clear finished runs
+
+The grant is fixed when the run is composed and cannot be widened afterwards, so there is no
+route that adds a tool to a run in flight. That absence is the design, not an omission.
+
+**Known drift on this host.** The process serving 8813 was started before `plugins` landed and
+answers 404 for it; the route is in this branch. Restart the unit to pick it up.
