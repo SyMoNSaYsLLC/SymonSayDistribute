@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
+# Copyright 2026 SymonSaysLLC
+#
+# model-store — put a checkpoint into the estate's model store, under our name, provably.
+#
+#   model-store where  [--store DIR]
+#   model-store place  <source-dir> <name> [--store DIR] [--dry-run]
+#   model-store verify <name> [--store DIR]
+#   model-store pin    <name> [--store DIR] [--upstream URL] [--out FILE]
+#
+# WHY THIS EXISTS
+# ---------------
+# Before this, nothing in the estate put a model anywhere. `serve-chat-unit.sh` READS the
+# store; the store was filled by hand. So the one artifact the whole product depends on
+# arrived by a command nobody recorded, under a name nobody checked, with no manifest, no
+# provenance and no pin — and the only thing making it "ours" was a symlink.
+#
+# WHAT A MIGRATION IS AND IS NOT
+# ------------------------------
+# It is: our store, our name, our manifest, our provenance record, our model card. Section
+# 3.11 — "our name goes on what we made: the implementation, the model cards, the
+# composition".
+#
+# It is NOT rewriting the checkpoint. `config.json`, the tokenizer and the tensor files stay
+# byte-identical, for two separate reasons that happen to agree:
+#   - they are technical identifiers required to load the software (3.11, permitted class 3);
+#     changing `model_type` or `architectures` breaks every loader that reads them
+#   - the licence obliges us to keep attribution and to state what we changed
+# A migration that edited them would be a misrepresentation, not a migration.
+set -o pipefail
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CMD=${1:-}
+[ $# -gt 0 ] && shift
+
+case "$CMD" in
+  where)  exec "$HERE/store/where.sh"  "$@" ;;
+  place)  exec python3 "$HERE/store/place.py"  "$@" ;;
+  verify) exec python3 "$HERE/store/verify.py" "$@" ;;
+  pin)    exec python3 "$HERE/store/pin.py"    "$@" ;;
+  ""|-h|--help)
+    sed -n '5,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+    exit 0 ;;
+  *) echo "unknown command: $CMD" >&2; exit 2 ;;
+esac
