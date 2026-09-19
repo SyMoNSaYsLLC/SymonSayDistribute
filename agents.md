@@ -52,14 +52,32 @@ Reporting that as a return makes "it worked" and "it produced nothing" identical
 downstream. It now has its own state and names what was actually produced. Three tests hold that
 line: thinking-only, no content at all, and whitespace.
 
-## Known: tool calling does not work against the stand-in
+## Known: tool calling is not reachable yet, and the reason is now specific
 
 `proof_live.py` runs one real agent against the live gateway. As of 2026-09-19 it returns
-`empty`, because the substitution engine is running with no tool-call parser — our own tool
-rendering belongs to `symoneural-llm` and is not on that path.
+`empty`.
 
-The loop is correct and the capability is not yet reachable. Both are true, and the proof script
-reports which rather than leaving it to be inferred.
+This was recorded here as "the substitution engine is running with no tool-call parser", which
+was true and useless. Measured against the unit on 8802 the same day, the cause is exact:
+
+    "Reply with exactly: READY"          42 tokens   content "READY"
+    "What is 2+2?"                       47 tokens   content "4"
+    "Use a tool."                       150 tokens   content ""
+    the same, with a tools[] block      150 tokens   content "", tool_calls null
+
+The model generates in every case. gpt-oss emits into harmony channels — analysis and
+commentary, where its tool calls live — and the server parses neither, so those tokens are
+produced and discarded. `empty` was the loop faithfully reporting a reply that had been thrown
+away upstream of it.
+
+The fix is two flags on the engine, not a change here: `--enable-auto-tool-choice` with
+`--tool-call-parser openai` and `--reasoning-parser openai_gptoss`.
+`symoneural-learn/runtime/serve-chat-unit.sh` passes them as of 2026-09-19 and the engine has
+not been restarted onto them yet.
+
+The loop is correct and the capability is not yet reachable. Both remain true, and `empty` was
+the right state to have built — it distinguished "the model said nothing" from "the model
+failed", and only one of those is what happened.
 
 ## Testing
 
