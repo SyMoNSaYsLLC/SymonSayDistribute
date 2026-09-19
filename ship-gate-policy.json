@@ -463,6 +463,14 @@
       "blob": "c70a206ce",
       "path": "selftest.sh",
       "recorded": "2026-09-18"
+    },
+    {
+      "fingerprint": "352c550e7cfd",
+      "what": "test-fixture token literal in ravenbatch/tests/test_service.py",
+      "why_it_passes": "Never a credential. It was the placeholder the ravenbatch service tests authenticated with, chosen so the 503-when-unset and 401-on-wrong-token paths could be exercised. The gate refused the release on 2026-09-19 and was right to: nothing reading a file can tell a placeholder from a live key. It was removed from the working tree the same day and is now derived per run with uuid4, so no value is written down any more, but it remains in the blob at tests/test_service.py@e9a8552ee, which no non-rewriting operation can remove.",
+      "blob": "e9a8552ee",
+      "path": "tests/test_service.py",
+      "recorded": "2026-09-19"
     }
   ],
   "profiles": {
