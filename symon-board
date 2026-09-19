@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
+# Copyright 2026 SymonSaysLLC
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+exec python3 "$HERE/board.py" "$@"
