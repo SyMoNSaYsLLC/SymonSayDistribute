@@ -3,8 +3,8 @@
 """Formation tests. The bound a batch reports is as much the product as the batch is."""
 import pytest
 
-from symoneural_ravenbatch.admit import Request
-from symoneural_ravenbatch.form import (
+from symonpayload.admit import Request
+from symonpayload.form import (
     Batch, Bundler, CannotForm, Concatenator, DynamicBatcher, MicroBatch, Packer, Padder,
     Reservoir, Stacker, Staging, TokenBudget)
 

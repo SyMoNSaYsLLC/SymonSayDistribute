@@ -1,4 +1,4 @@
-# ravenbatch — the name map
+# symonpayload — the name map
 
 Sixty well-known names for pieces of an inference batching and scheduling layer, each given a
 SyMoNeuRaL name. Three of the seventy-three lines supplied were repeats (`DynamicBatcher`,
@@ -14,9 +14,9 @@ implementation of it**, which is first-party code in this branch.
 
 ## Placement
 
-    placement-triage prospect ravenbatch --sources python-stdlib@PSF-2.0
+    placement-triage prospect symonpayload --sources python-stdlib@PSF-2.0
 
-    name      ravenbatch
+    name      symonpayload
     verdict   SymonSayDistribute
     licence   SymonSaysLLC Proprietary License
     why       every named source is non-copyleft, so the default applies
@@ -41,7 +41,7 @@ copyright header, which is not the same as reading it.
 A name that is a configuration of another is marked so rather than given its own class. Sixty
 classes for sixty names would be sixty places for the same bug.
 
-## A. Admission — `symoneural_ravenbatch/admit.py`
+## A. Admission — `symonpayload/admit.py`
 
 **BUILT.** Code and tests on disk; 50 tests pass across A and B together.
 
@@ -58,7 +58,7 @@ Everything that happens before a request is allowed to cost anything.
 | InferenceQueuePrioritizer | `symon-prioritizer` | `Prioritizer` — the ordering policy the queue reads |
 | PriorityQueueGatekeeper | `symon-gatekeeper` | `Gatekeeper` — `Queue` + `Prioritizer` + `TriageGate` as one object |
 
-## B. Batch formation — `symoneural_ravenbatch/form.py`
+## B. Batch formation — `symonpayload/form.py`
 
 **BUILT.** Code and tests on disk.
 
@@ -79,7 +79,7 @@ Turning admitted requests into one call the engine can take.
 | SequencePadders | `symon-padder` | `Padder` — pads to a common length and reports the waste |
 | TokenReservoir | `symon-reservoir` | `Reservoir` — tokens available to spend this window |
 
-## C. Scheduling and dispatch — `symoneural_ravenbatch/dispatch.py`
+## C. Scheduling and dispatch — `symonpayload/dispatch.py`
 
 **NAMED AND SOURCED, NOT BUILT.** See the note at the end.
 
@@ -99,9 +99,9 @@ Deciding what runs next, and sending it.
 | ModelVariantDispatcher | `symon-variant-dispatch` | `VariantDispatcher` — request to a model variant |
 | BatchEgressController | `symon-egress` | `Egress` — results back to the callers that asked |
 | ParallelComputeRunner | `symon-parallel-runner` | `ParallelRunner` — bounded concurrent execution |
-| VectorInferenceEngine | `symon-vector-engine` | **Not built here.** This is the engine itself — the chat unit on 8802. ravenbatch is in front of it, not a second one |
+| VectorInferenceEngine | `symon-vector-engine` | **Not built here.** This is the engine itself — the chat unit on 8802. symonpayload is in front of it, not a second one |
 
-## D. Flow control — `symoneural_ravenbatch/flow.py`
+## D. Flow control — `symonpayload/flow.py`
 
 **NAMED AND SOURCED, NOT BUILT.** Needs measured latency and token rate.
 
@@ -118,7 +118,7 @@ What stops the estate from accepting work it cannot serve.
 | WindowSizeTuner | `symon-window-tuner` | `WindowTuner` — the batching window, from measurement |
 | DynamicWindowStager | `symon-window-stager` | `WindowStager` — applies a tuned window without a restart |
 
-## E. Residency and buffers — `symoneural_ravenbatch/residency.py`
+## E. Residency and buffers — `symonpayload/residency.py`
 
 **NAMED AND SOURCED, NOT BUILT.** Needs per-device residency measurement.
 
@@ -137,7 +137,7 @@ bookkeeping around it.
 | DataChunker | `symon-chunker` | `Chunker` — fixed-size chunking with the remainder named |
 | DataPipelineStager | `symon-stager` | `Stager` — moves data between stages without copying twice |
 
-## F. Sweeps and evaluation — `symoneural_ravenbatch/sweep.py`
+## F. Sweeps and evaluation — `symonpayload/sweep.py`
 
 **NAMED AND SOURCED, NOT BUILT.** Buildable without measurement; not started.
 

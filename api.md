@@ -1,4 +1,4 @@
-# ravenbatch — the API, in our names
+# symonpayload — the API, in our names
 
 The supplied API document is a **generic reference**. This page is the SyMoNeuRaL version of
 it: our route namespace, our names, and — the part that matters — an honest verdict per route
@@ -14,14 +14,14 @@ The reference puts everything under `/v1/...`. We do not.
 public wire format with independent implementations, and its paths are fixed because clients
 expect exactly those. It is the estate's front door for third-party clients.
 
-ravenbatch has no third-party client. Nothing outside the host speaks to it. So it has no
+symonpayload has no third-party client. Nothing outside the host speaks to it. So it has no
 business in that namespace, and it follows the convention every other unit here already uses:
 
     board       /api/board/...
     store       /api/store/...
     agents      /api/agents/...
     ravencalc   /api/ravencalc/...
-    ravenbatch  /api/ravenbatch/...        <- this unit
+    symonpayload  /api/symonpayload/...        <- this unit
 
 Garrett's ruling, 2026-09-19: *"if it was up to me we would not use that naming convention we
 would make our own."* It is up to him, and we already had our own.
@@ -34,8 +34,8 @@ there.
 
 ## Port and credential
 
-    ravenbatch = 8814        # recorded in /models/control.board
-    SYM_RAVENBATCH_TOKEN     # unset closes the unit (503), it does not open it
+    symonpayload = 8814        # recorded in /models/control.board
+    SYM_PAYLOAD_TOKEN     # unset closes the unit (503), it does not open it
 
 8814 was confirmed free before it was taken. Recording the port in `control.board` in the same
 change is deliberate: the eight-site documentation defect fixed earlier today was caused by a
@@ -61,10 +61,10 @@ to take and return the shapes themselves.
 
 | reference | SyMoNeuRaL | verdict |
 |---|---|---|
-| `POST /v1/requests/submit` | `POST /api/ravenbatch/requests/submit` | **amended** |
-| `POST /v1/requests/batch` | `POST /api/ravenbatch/requests/batch` | **amended** |
-| `POST /v1/payloads/coalesce` | `POST /api/ravenbatch/payloads/coalesce` | **amended** |
-| `POST /v1/requests/triage` | `POST /api/ravenbatch/requests/triage` | **amended** |
+| `POST /v1/requests/submit` | `POST /api/symonpayload/requests/submit` | **amended** |
+| `POST /v1/requests/batch` | `POST /api/symonpayload/requests/batch` | **amended** |
+| `POST /v1/payloads/coalesce` | `POST /api/symonpayload/payloads/coalesce` | **amended** |
+| `POST /v1/requests/triage` | `POST /api/symonpayload/requests/triage` | **amended** |
 
 **submit — amended.** The reference takes `{model_id, prompt, parameters}` and returns
 `{request_id, status, queued_at}`. Ours requires **`tokens`**, counted by the caller. The
@@ -82,7 +82,7 @@ rate is worse than no estimate, because callers act on it.
 **coalesce — amended.** The reference returns `{coalesced_payload_id, unified_tensor_shape}`.
 We return the **leader request id** and its followers. There is no unified tensor because there
 are no tensors here. Coalescing is by the caller's declared fingerprint and nothing else — see
-ravenbatch.md for why identity is never inferred.
+symonpayload.md for why identity is never inferred.
 
 **prioritize — amended.** The reference takes an explicit `priority_level` per item. Ours
 orders by **deadline**, and reports the resulting order. An explicit level that can be set
@@ -93,9 +93,9 @@ be checked against the clock.
 
 | reference | SyMoNeuRaL | verdict |
 |---|---|---|
-| `GET /v1/inference/queue/status` | `GET /api/ravenbatch/queue/status` | **as declared** |
-| `POST /v1/inference/queue/prioritize` | `POST /api/ravenbatch/queue/prioritize` | **amended** |
-| — | `POST /api/ravenbatch/batches/form` | **new** — the core of what is built |
+| `GET /v1/inference/queue/status` | `GET /api/symonpayload/queue/status` | **as declared** |
+| `POST /v1/inference/queue/prioritize` | `POST /api/symonpayload/queue/prioritize` | **amended** |
+| — | `POST /api/symonpayload/batches/form` | **new** — the core of what is built |
 
 **`batches/form` is not in the reference and is the most useful route here.** It forms a batch
 and returns which **bound** ended formation — `tokens`, `count`, `window` or `drained`. The
@@ -110,11 +110,11 @@ from anything other than measurement is the defect the whole estate is built to 
 
 | reference | SyMoNeuRaL | verdict |
 |---|---|---|
-| `POST /v1/tensors/stack` | `POST /api/ravenbatch/shapes/stack` | **amended** |
-| `POST /v1/tensors/concatenate` | `POST /api/ravenbatch/shapes/concatenate` | **amended** |
-| `POST /v1/tokens/batch/sequence` | `POST /api/ravenbatch/tokens/plan` | **amended** |
-| `POST /v1/tokens/reservoir/fill` | `POST /api/ravenbatch/tokens/reservoir` | **as declared** |
-| — | `POST /api/ravenbatch/shapes/pack` | **new** — packing against padding |
+| `POST /v1/tensors/stack` | `POST /api/symonpayload/shapes/stack` | **amended** |
+| `POST /v1/tensors/concatenate` | `POST /api/symonpayload/shapes/concatenate` | **amended** |
+| `POST /v1/tokens/batch/sequence` | `POST /api/symonpayload/tokens/plan` | **amended** |
+| `POST /v1/tokens/reservoir/fill` | `POST /api/symonpayload/tokens/reservoir` | **as declared** |
+| — | `POST /api/symonpayload/shapes/pack` | **new** — packing against padding |
 
 The first three are renamed from `tensors/` to **`shapes/`** because that is what they operate
 on. They take shapes and lengths and return shapes, boundaries and costs. They do not take
@@ -168,8 +168,8 @@ Sixteen reference routes are dropped rather than declared. See above.
 
 ## gRPC
 
-`ravenbatch.proto` in this branch carries the same surface under
-`package symoneural.ravenbatch.v1`, service `RavenBatchService`.
+`symonpayload.proto` in this branch carries the same surface under
+`package symoneural.symonpayload.v1`, service `SymonPayloadService`.
 
 **It is a definition and there is no server.** Nothing in this estate speaks gRPC, no consumer
 asks for it, and a `.proto` that reads as a live surface is the same phantom the image unit was
@@ -190,7 +190,7 @@ a compiler for a definition-only file was not worth doing unasked. The file is w
 read, not compiled. To check it:
 
     sudo apt install protobuf-compiler
-    protoc --proto_path=/mnt/SymonSayDistribute/ravenbatch \
-           --descriptor_set_out=/dev/null /mnt/SymonSayDistribute/ravenbatch/ravenbatch.proto
+    protoc --proto_path=/mnt/SymonSayDistribute/symonpayload \
+           --descriptor_set_out=/dev/null /mnt/SymonSayDistribute/symonpayload/symonpayload.proto
 
 Until that runs, treat the syntax as unproven.

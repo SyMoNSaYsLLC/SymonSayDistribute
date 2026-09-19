@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 // Copyright 2026 SymonSaysLLC
 //
-// ravenbatch — admission and batch formation.
+// symonpayload — admission and batch formation.
 //
 // DEFINITION ONLY. THERE IS NO SERVER.
 // Nothing in this estate speaks gRPC and no consumer asks for it. This file records the shape
@@ -18,13 +18,13 @@
 
 syntax = "proto3";
 
-package symoneural.ravenbatch.v1;
+package symoneural.symonpayload.v1;
 
-option go_package = "symoneural/ravenbatch/v1;ravenbatchv1";
+option go_package = "symoneural/symonpayload/v1;symonpayloadv1";
 option java_multiple_files = true;
-option java_package = "com.symoneural.ravenbatch.v1";
+option java_package = "com.symoneural.symonpayload.v1";
 
-service RavenBatchService {
+service SymonPayloadService {
   // Liveness. The only method that answers before the unit is configured.
   rpc Health (HealthRequest) returns (HealthResponse);
 

@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 # Copyright 2026 SymonSaysLLC
 # SyMoNsAyLeaRn — SyMoNeuRaL, a subdivision of SymonSaysLLC. Terms: see LICENSE.
-"""ravenbatch over HTTP — admission and formation, in our namespace.
+"""symonpayload over HTTP — admission and formation, in our namespace.
 
-Thirteen routes under /api/ravenbatch/. Not /v1/: that namespace is the Messages dialect the
+Thirteen routes under /api/symonpayload/. Not /v1/: that namespace is the Messages dialect the
 gateway serves to third-party clients and its paths are fixed by them. Nothing outside this
-host speaks to ravenbatch, so it uses the convention every other unit here already uses.
+host speaks to symonpayload, so it uses the convention every other unit here already uses.
 
 NO ROUTE IS SERVED FOR A COMPONENT THAT IS NOT BUILT. Sixteen routes in the reference document
 have no code behind them and therefore have no route — not a stub, not a 501, not a 200 with an
@@ -22,28 +22,28 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from symoneural_ravenbatch.admit import (
+from symonpayload.admit import (
     Coalescer, Gatekeeper, Ingress, Prioritizer, Queue, Refused, Request, TriageGate)
-from symoneural_ravenbatch.form import (
+from symonpayload.form import (
     Bundler, CannotForm, Concatenator, DynamicBatcher, Packer, Padder, Reservoir, Stacker)
 
-UNIT = "ravenbatch"
+UNIT = "symonpayload"
 STARTED = time.time()
 
 app = FastAPI(
-    title="SyMoNeuRaL ravenbatch",
+    title="SyMoNeuRaL symonpayload",
     version="1.1.0",
     description="Admission and batch formation for the inference path.",
-    docs_url="/api/ravenbatch/docs",
-    openapi_url="/api/ravenbatch/openapi.json",
+    docs_url="/api/symonpayload/docs",
+    openapi_url="/api/symonpayload/openapi.json",
 )
 
 
 def require_token(authorization: Annotated[str | None, Header()] = None) -> None:
-    expected = (os.environ.get("SYM_RAVENBATCH_TOKEN") or "").strip()
+    expected = (os.environ.get("SYM_PAYLOAD_TOKEN") or "").strip()
     if not expected:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
-                            detail="ravenbatch is unconfigured: SYM_RAVENBATCH_TOKEN is not set")
+                            detail="symonpayload is unconfigured: SYM_PAYLOAD_TOKEN is not set")
     got = (authorization or "").removeprefix("Bearer ").strip()
     if not hmac.compare_digest(got, expected):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="bad token")
@@ -80,8 +80,8 @@ _GATE: dict[str, Any] = {"keeper": None}
 def _keeper() -> Gatekeeper:
     if _GATE["keeper"] is None:
         _GATE["keeper"] = Gatekeeper(
-            gate=TriageGate(max_tokens=_policy("SYM_RAVENBATCH_MAX_TOKENS")),
-            ingress=Ingress(capacity=_policy("SYM_RAVENBATCH_CAPACITY")),
+            gate=TriageGate(max_tokens=_policy("SYM_PAYLOAD_MAX_TOKENS")),
+            ingress=Ingress(capacity=_policy("SYM_PAYLOAD_CAPACITY")),
             queue=Queue(Prioritizer()), coalescer=Coalescer())
     return _GATE["keeper"]
 
@@ -136,14 +136,14 @@ def _refused(r: Refused) -> HTTPException:
 
 
 # --------------------------------------------------------------------------- routes
-@app.get("/api/ravenbatch/health")
+@app.get("/api/symonpayload/health")
 def health() -> dict[str, Any]:
     """Public; answers before the unit is configured, so liveness and readiness differ."""
     return {"unit": UNIT, "status": "ok", "uptime_s": round(time.time() - STARTED, 1),
-            "configured": bool((os.environ.get("SYM_RAVENBATCH_TOKEN") or "").strip())}
+            "configured": bool((os.environ.get("SYM_PAYLOAD_TOKEN") or "").strip())}
 
 
-@app.post("/api/ravenbatch/requests/submit")
+@app.post("/api/symonpayload/requests/submit")
 def submit(body: SubmitIn, _: Authed) -> dict[str, Any]:
     """Admit one request. Amended from the reference: `tokens` is required and counted."""
     k = _keeper()
@@ -157,7 +157,7 @@ def submit(body: SubmitIn, _: Authed) -> dict[str, Any]:
             "coalesced_into": leader, "queue_depth": len(k.queue)}
 
 
-@app.post("/api/ravenbatch/requests/batch")
+@app.post("/api/symonpayload/requests/batch")
 def submit_many(body: BatchIn, _: Authed) -> dict[str, Any]:
     """Admit many. Partial success is reported, never rolled back silently."""
     k = _keeper()
@@ -175,7 +175,7 @@ def submit_many(body: BatchIn, _: Authed) -> dict[str, Any]:
             "queue_depth": len(k.queue)}
 
 
-@app.post("/api/ravenbatch/requests/triage")
+@app.post("/api/symonpayload/requests/triage")
 def triage(body: SubmitIn, _: Authed) -> dict[str, Any]:
     """Which lane, and why. No estimated_wait_ms — that needs a measured service rate."""
     try:
@@ -189,7 +189,7 @@ def triage(body: SubmitIn, _: Authed) -> dict[str, Any]:
                 "a wait is queue depth over a measured service rate, and this host has none"}
 
 
-@app.post("/api/ravenbatch/payloads/coalesce")
+@app.post("/api/symonpayload/payloads/coalesce")
 def coalesce(body: BatchIn, _: Authed) -> dict[str, Any]:
     """Group by the caller's declared fingerprint. Identity is never inferred here."""
     c = Coalescer()
@@ -209,7 +209,7 @@ def coalesce(body: BatchIn, _: Authed) -> dict[str, Any]:
             "saved_calls": sum(len(v) for v in leaders.values())}
 
 
-@app.get("/api/ravenbatch/queue/status")
+@app.get("/api/symonpayload/queue/status")
 def queue_status(_: Authed) -> dict[str, Any]:
     """As declared in the reference."""
     k = _keeper()
@@ -220,7 +220,7 @@ def queue_status(_: Authed) -> dict[str, Any]:
             "refused_since_start": len(k.refusals)}
 
 
-@app.post("/api/ravenbatch/queue/prioritize")
+@app.post("/api/symonpayload/queue/prioritize")
 def prioritize(_: Authed) -> dict[str, Any]:
     """Amended: ordering is by deadline, not by a level a caller can set for itself."""
     pending = _keeper().queue.peek()
@@ -231,7 +231,7 @@ def prioritize(_: Authed) -> dict[str, Any]:
                 "is a claim that can be checked against the clock"}
 
 
-@app.post("/api/ravenbatch/batches/form")
+@app.post("/api/symonpayload/batches/form")
 def form_batch(body: FormIn, _: Authed) -> dict[str, Any]:
     """Not in the reference, and the most useful route here: it reports which bound tripped."""
     k = _keeper()
@@ -252,7 +252,7 @@ def form_batch(body: FormIn, _: Authed) -> dict[str, Any]:
             "queue_depth": len(k.queue)}
 
 
-@app.post("/api/ravenbatch/shapes/stack")
+@app.post("/api/symonpayload/shapes/stack")
 def shapes_stack(body: ShapesIn, _: Authed) -> dict[str, Any]:
     """Amended: shapes in, shape out. This unit stores no tensors, so it mints no tensor ids."""
     try:
@@ -262,7 +262,7 @@ def shapes_stack(body: ShapesIn, _: Authed) -> dict[str, Any]:
     return {"resulting_shape": list(out), "members": len(body.shapes)}
 
 
-@app.post("/api/ravenbatch/shapes/concatenate")
+@app.post("/api/symonpayload/shapes/concatenate")
 def shapes_concat(body: LengthsIn, _: Authed) -> dict[str, Any]:
     """Amended: lengths in, boundaries out, so the result can be split again correctly."""
     try:
@@ -272,7 +272,7 @@ def shapes_concat(body: LengthsIn, _: Authed) -> dict[str, Any]:
     return out
 
 
-@app.post("/api/ravenbatch/shapes/pack")
+@app.post("/api/symonpayload/shapes/pack")
 def shapes_pack(body: LengthsIn, _: Authed) -> dict[str, Any]:
     """Not in the reference: the alternative to padding, with its cost, so a caller can choose."""
     if body.width is None:
@@ -283,7 +283,7 @@ def shapes_pack(body: LengthsIn, _: Authed) -> dict[str, Any]:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(e))
 
 
-@app.post("/api/ravenbatch/tokens/plan")
+@app.post("/api/symonpayload/tokens/plan")
 def tokens_plan(body: LengthsIn, _: Authed) -> dict[str, Any]:
     """Amended: the padding plan and what it wastes, rather than a tensor id for a tensor."""
     try:
@@ -292,7 +292,7 @@ def tokens_plan(body: LengthsIn, _: Authed) -> dict[str, Any]:
         raise HTTPException(status.HTTP_409_CONFLICT, detail=str(e))
 
 
-@app.post("/api/ravenbatch/tokens/reservoir")
+@app.post("/api/symonpayload/tokens/reservoir")
 def tokens_reservoir(body: ReservoirIn, _: Authed) -> dict[str, Any]:
     """As declared: fill level and what is left."""
     try:
@@ -312,8 +312,8 @@ def tokens_reservoir(body: ReservoirIn, _: Authed) -> dict[str, Any]:
 
 def main() -> None:
     import uvicorn
-    uvicorn.run(app, host=os.environ.get("SYM_RAVENBATCH_HOST", "127.0.0.1"),
-                port=int(os.environ.get("SYM_RAVENBATCH_PORT", "8814")))
+    uvicorn.run(app, host=os.environ.get("SYM_PAYLOAD_HOST", "127.0.0.1"),
+                port=int(os.environ.get("SYM_PAYLOAD_PORT", "8814")))
 
 
 if __name__ == "__main__":

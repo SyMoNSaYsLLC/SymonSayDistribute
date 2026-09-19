@@ -3,7 +3,7 @@
 """Admission tests. Most of these are refusals, because the refusals are the product."""
 import pytest
 
-from symoneural_ravenbatch.admit import (
+from symonpayload.admit import (
     Aggregator, Coalescer, Gatekeeper, Ingress, Prioritizer, Queue, Refused, Request, TriageGate)
 
 

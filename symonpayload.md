@@ -1,4 +1,4 @@
-# ravenbatch
+# symonpayload
 
 Admission and batch formation for the estate's inference path.
 
@@ -12,13 +12,32 @@ ordering, no ceiling on what is in flight, and no way to refuse work before it c
 That holds until two callers arrive at once, and then the failure surfaces as a timeout
 somewhere downstream with nothing to say which request caused it or why it was accepted.
 
-ravenbatch is the layer that goes in front: work is refused at the door with a reason, or it is
+symonpayload is the layer that goes in front: work is refused at the door with a reason, or it is
 admitted and accounted for. There is no third state where something is in the building and
 nobody knows.
 
+## The name
+
+Cut once as `ravenbatch` and renamed before anything depended on it.
+
+`raven` was never a considered choice. `ravencalc` existed in the estate, this was a second
+infrastructure unit, and the name was extended to it so the two would read as a family —
+pattern-matching, not a decision. Nothing in the repository ever recorded what `raven` meant;
+it came from `RavenCalcServer`, dated 2025-12-24, nine months before this estate existed, and
+it is Garrett's.
+
+His ruling, 2026-09-19: **ravencalc is a one-off and keeps its name — it is the estate's
+provider of arithmetic.** It is not a family and this unit is not a member of it. Renamed to
+`symonpayload`, which says what the unit does: it forms the payload the engine is given.
+
+The rename was done immediately and the `ravenbatch/v1.0.0` and `v1.1.0` tags and releases were
+removed rather than left behind, on his instruction to prevent dead tags. Nothing imported the
+unit, no connector reached it and its token was never provisioned, so there was nothing to
+break — which is exactly why it was done now rather than after module C lands.
+
 ## Placement
 
-    placement-triage prospect ravenbatch --sources python-stdlib@PSF-2.0
+    placement-triage prospect symonpayload --sources python-stdlib@PSF-2.0
     -> SymonSayDistribute, SymonSaysLLC Proprietary License
 
 One source, and it is the standard library. vLLM, llama.cpp and OpenAI Triton are on this host
@@ -27,7 +46,7 @@ naming them would have been wrong. Nothing here copies a line from them or links
 They are prior art, and a source list that names things the artifact does not contain inflates
 the census the ship gate runs.
 
-## Built: admission — `symoneural_ravenbatch/admit.py`
+## Built: admission — `symonpayload/admit.py`
 
 `Ingress` `Prioritizer` `Coalescer` `TriageGate` `Queue` `Aggregator` `Gatekeeper`
 
@@ -50,7 +69,7 @@ nothing else. Hashing bodies to decide identity means two requests that differ i
 not think to hash would silently receive each other's answer — a correctness bug wearing the
 costume of an optimisation. An empty fingerprint means "never coalesce me".
 
-## Built: formation — `symoneural_ravenbatch/form.py`
+## Built: formation — `symonpayload/form.py`
 
 `TokenBudget` `Batch` `DynamicBatcher` `MicroBatch` `Padder` `Stacker` `Concatenator`
 `Packer` `Bundler` `Staging` `Reservoir`
@@ -95,7 +114,7 @@ cannot be constructed at all. Over HTTP: an unset token answering 503 rather tha
 missing policy variable named in the 503, a refusal answering 429 rather than 400, and eight
 unbuilt routes asserted to be 404 so a stub cannot appear without a test failing.
 
-    cd /mnt/SymonSayDistribute/ravenbatch && python3 -m pytest tests/ -q
+    cd /mnt/SymonSayDistribute/symonpayload && python3 -m pytest tests/ -q
 
 ## Not built yet
 
@@ -110,31 +129,31 @@ produced four modules that pass their own tests and are wrong on the machine.
 
 ## Over HTTP
 
-Thirteen routes on `127.0.0.1:8814`, the port `/models/control.board` assigns to `ravenbatch`.
-Health is public; everything else needs `SYM_RAVENBATCH_TOKEN`, and an unset token closes the
+Thirteen routes on `127.0.0.1:8814`, the port `/models/control.board` assigns to `symonpayload`.
+Health is public; everything else needs `SYM_PAYLOAD_TOKEN`, and an unset token closes the
 unit rather than opening it.
 
-    GET  /api/ravenbatch/health              public; answers before the unit is configured
-    POST /api/ravenbatch/requests/submit     admit one; `tokens` is required and counted
-    POST /api/ravenbatch/requests/batch      admit many; partial success is reported
-    POST /api/ravenbatch/requests/triage     which lane, and why
-    POST /api/ravenbatch/payloads/coalesce   group by the caller's declared fingerprint
-    GET  /api/ravenbatch/queue/status        depth, tokens pending, refusals since start
-    POST /api/ravenbatch/queue/prioritize    the resulting order, and the policy behind it
-    POST /api/ravenbatch/batches/form        form one, and report which bound tripped
-    POST /api/ravenbatch/shapes/stack        will these stack, and to what shape
-    POST /api/ravenbatch/shapes/concatenate  the total, and the boundaries to split it again
-    POST /api/ravenbatch/shapes/pack         rows, and what packing wastes
-    POST /api/ravenbatch/tokens/plan         the padding plan, and what it wastes
-    POST /api/ravenbatch/tokens/reservoir    fill level and remaining — two numbers, not one
+    GET  /api/symonpayload/health              public; answers before the unit is configured
+    POST /api/symonpayload/requests/submit     admit one; `tokens` is required and counted
+    POST /api/symonpayload/requests/batch      admit many; partial success is reported
+    POST /api/symonpayload/requests/triage     which lane, and why
+    POST /api/symonpayload/payloads/coalesce   group by the caller's declared fingerprint
+    GET  /api/symonpayload/queue/status        depth, tokens pending, refusals since start
+    POST /api/symonpayload/queue/prioritize    the resulting order, and the policy behind it
+    POST /api/symonpayload/batches/form        form one, and report which bound tripped
+    POST /api/symonpayload/shapes/stack        will these stack, and to what shape
+    POST /api/symonpayload/shapes/concatenate  the total, and the boundaries to split it again
+    POST /api/symonpayload/shapes/pack         rows, and what packing wastes
+    POST /api/symonpayload/tokens/plan         the padding plan, and what it wastes
+    POST /api/symonpayload/tokens/reservoir    fill level and remaining — two numbers, not one
 
 Not `/v1/`. That namespace is the Messages dialect the gateway serves to third-party clients
-and its paths are fixed by them; nothing outside this host speaks to ravenbatch. See
+and its paths are fixed by them; nothing outside this host speaks to symonpayload. See
 [api.md](api.md) for the full mapping from the generic reference, with a verdict on every
 route.
 
-**Policy has no defaults over HTTP either.** `SYM_RAVENBATCH_MAX_TOKENS` and
-`SYM_RAVENBATCH_CAPACITY` are read from the environment and the unit answers 503 naming the
+**Policy has no defaults over HTTP either.** `SYM_PAYLOAD_MAX_TOKENS` and
+`SYM_PAYLOAD_CAPACITY` are read from the environment and the unit answers 503 naming the
 missing variable rather than picking a number. A 503 that names a knob is something an
 operator can fix; a default is a decision nobody made.
 
@@ -147,4 +166,4 @@ do.
 
 ## Releases
 
-Tagged `ravenbatch/v<version>`.
+Tagged `symonpayload/v<version>`.
