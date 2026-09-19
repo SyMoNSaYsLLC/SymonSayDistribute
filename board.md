@@ -46,6 +46,36 @@ here separately: the profile exists; a config-library entry is applied **and its
 gateway answers; and a credential is reachable through a helper, so it never enters a system
 file. The helper is invoked, never read.
 
+## Which surface gets the credential
+
+`symon-board client 3p|webui|both|off` selects it, and reports whether the selected surface is
+actually wired.
+
+**The key is not on the board and will not be.** Section 3.2 permits fingerprints and file
+locations only. `credential` names the path; the fingerprint is computed at `show` time and
+reported in `[live]`, so an operator can confirm which key is live — and that two surfaces hold
+the same one — without anyone seeing it.
+
+Neither surface wants the value, which is why this works. The web console reads the key file
+server-side through `SYM_GW_KEY_FILE`, never in a browser. The client invokes a helper that
+prints the token, so it never enters the client's own configuration. The board only had to
+select and verify.
+
+### The check that matters
+
+Not "is a helper configured" but **does what it emits match the key the board names**. A helper
+can be present, executable, and handing the client a stale or different credential; every check
+short of this one passes while inference fails on a 401.
+
+Both sides are hashed and compared. Neither value is returned, stored, printed or logged — the
+comparison is the entire output. A mismatch says so by name.
+
+Verified on this host: the key file, the installed helper's output, and the board all report the
+same fingerprint.
+
+If the entry ever reports `STATIC`, the key is sitting in the client's config file on disk. That
+is exactly what `helper-script` exists to avoid, and the board says so rather than passing it.
+
 ## Releases
 
 Tagged `board/v<version>`.
