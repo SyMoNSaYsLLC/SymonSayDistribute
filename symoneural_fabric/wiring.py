@@ -43,7 +43,7 @@ NOT_EXPOSED = {
     "resolve":          "routed as GET /api/fabric/resolve",
 }
 
-BOARD = os.environ.get("SYM_BOARD_FILE", "/models/control.board")
+BOARD = os.environ.get("SYM_BOARD_FILE", "/mnt/models/control.board")
 
 _ENTRY = re.compile(r"^\s*([a-z_][a-z0-9_]*)\s*=\s*(\d{2,5})", re.M)
 
@@ -63,6 +63,11 @@ KNOWN: dict[str, dict[str, Any]] = {
     "symonlora":    {"prefix": "/api/symonlora",    "token_env": "SYM_LORA_TOKEN"},
     "symonengine":  {"prefix": "/api/symonengine",  "token_env": "SYM_ENGINE_TOKEN"},
     "symonimage":   {"prefix": "/api/symonimage",   "token_env": "SYM_IMAGE_TOKEN"},
+    "symonkernel":  {"prefix": "/api/symonkernel",  "token_env": "SYM_KERNEL_TOKEN"},
+    "symondriver":  {"prefix": "/api/symondriver",  "token_env": "SYM_DRIVER_TOKEN"},
+    "symonsdk":  {"prefix": "/api/symonsdk",  "token_env": "SYM_SDK_TOKEN"},
+    "symoncross":  {"prefix": "/api/symoncross",  "token_env": "SYM_CROSS_TOKEN"},
+    "symonbuild":  {"prefix": "/api/symonbuild",  "token_env": "SYM_BUILD_TOKEN"},
     # The gateway speaks the public Messages dialect, whose paths are fixed by its clients and
     # are not ours to prefix. Its credential is a FILE, named on the board, never an env var.
     "gateway":      {"prefix": "/v1",               "token_env": None, "health": "/health"},

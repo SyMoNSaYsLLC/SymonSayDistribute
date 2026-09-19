@@ -24,6 +24,8 @@ allowed" are different answers and only one of them is the operator's to fix.
 from __future__ import annotations
 
 import json
+import ipaddress
+import urllib.parse
 import os
 import time
 import urllib.error
@@ -36,6 +38,7 @@ SAFE_METHODS = {"GET", "HEAD"}
 METHODS = SAFE_METHODS | {"POST", "PUT", "PATCH", "DELETE"}
 
 
+
 def call(component: str, path: str, method: str = "GET", body: dict | None = None,
          timeout: float = 30.0) -> dict[str, Any]:
     """Route one call. Returns the far end's answer, and always says what it routed to."""
@@ -45,15 +48,20 @@ def call(component: str, path: str, method: str = "GET", body: dict | None = Non
     target = resolve(component, path)
 
     headers = {"accept": "application/json"}
+    # No key is attached unless one exists, and a missing one is never a refusal.
+    #
+    # Garrett, 2026-09-19: keys are for traffic that leaves this machine. Everything the fabric
+    # routes to is on this machine BY CONSTRUCTION — `wiring.components()` builds every base as
+    # http://127.0.0.1:<port>, so there is no off-loopback case here to guard. Writing one
+    # anyway would be a branch that cannot execute, which gates nothing and reads as protection.
+    #
+    # If a component is ever given a non-loopback base, this is the line that must change with
+    # it: attach the key, and refuse when it is missing.
     env = target.get("token_env")
     if env:
         tok = (os.environ.get(env) or "").strip()
-        if not tok:
-            raise FabricError(
-                f"{component} needs {env} and the fabric does not have it. The token is read "
-                f"here, never accepted from a caller — a caller that could supply one could be "
-                f"persuaded to supply somebody else's")
-        headers["authorization"] = "Bearer " + tok
+        if tok:
+            headers["authorization"] = "Bearer " + tok
 
     data = None
     if body is not None:

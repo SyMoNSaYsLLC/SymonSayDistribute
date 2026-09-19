@@ -81,10 +81,33 @@ def test_a_method_the_fabric_does_not_forward_is_refused():
         T.call("board", "/api/board/health", "TRACE")
 
 
-def test_an_unprovisioned_token_names_the_variable_rather_than_failing_downstream(monkeypatch):
+def test_an_unset_token_is_not_a_refusal_because_every_target_is_on_this_machine(monkeypatch):
+    """The fabric used to refuse to forward when a target's token variable was unset.
+
+    It no longer does, and the reason is structural rather than a relaxation: `components()`
+    builds every base as http://127.0.0.1:<port>, so every call the fabric makes stays on this
+    machine. A key is for traffic that leaves it. Refusing here would make the fabric the one
+    thing in the estate still demanding a credential nothing else requires.
+
+    What is asserted is the absence of the OLD refusal — reaching the far end is a live
+    concern and belongs in the reachability tests, not here.
+    """
     monkeypatch.delenv("SYM_BOARD_TOKEN", raising=False)
-    with pytest.raises(W.FabricError, match="needs SYM_BOARD_TOKEN"):
-        T.call("board", "/api/board/settings")
+    try:
+        T.call("board", "/api/board/settings", timeout=2.0)
+    except W.FabricError as e:
+        assert "needs SYM_BOARD_TOKEN" not in str(e), \
+            "the fabric refused for a missing key it does not need on loopback"
+
+
+def test_every_routable_base_is_loopback_which_is_why_no_key_is_needed(monkeypatch):
+    """The premise the rule above rests on. If this ever fails, route.py must gain a guard."""
+    import ipaddress
+    import urllib.parse
+    for name, c in W.components().items():
+        host = urllib.parse.urlsplit(c["base"]).hostname
+        assert ipaddress.ip_address(host).is_loopback, \
+            f"{name} resolves to {host}, which is not on this machine — it now needs a key"
 
 
 def test_the_fabric_refuses_to_take_a_token_from_a_caller():
@@ -104,6 +127,9 @@ def test_control_plane_is_never_routable():
 
 # --- over http ---------------------------------------------------------------------------------
 def test_health_is_public_and_the_rest_is_closed(monkeypatch):
+    # Bound off-loopback the fabric is reachable from another machine, so the guard is live.
+    # Set the host BEFORE the reload: becoming reachable must not also mean becoming public.
+    monkeypatch.setenv("SYM_FABRIC_HOST", "0.0.0.0")
     monkeypatch.delenv("SYM_FABRIC_TOKEN", raising=False)
     import service
     importlib.reload(service)
@@ -135,3 +161,17 @@ def test_components_lists_what_is_unprovisioned(client):
 def test_the_board_route_reports_the_ports_it_read(client):
     r = client.get("/api/fabric/board", headers=auth())
     assert r.status_code == 200 and "gateway" in r.json()["ports"]
+
+
+def test_loopback_needs_no_token(monkeypatch):
+    """The other half of the same contract: on a 127.0.0.1 bind the token defends nothing, because
+    a caller who can reach the port is already on this host and can read the token itself."""
+    monkeypatch.delenv("SYM_FABRIC_HOST", raising=False)      # the loopback default
+    monkeypatch.delenv("SYM_FABRIC_TOKEN", raising=False)
+    import service
+    importlib.reload(service)
+    c = TestClient(service.app)
+    assert c.get("/api/fabric/health").status_code == 200
+    r = c.get("/api/fabric/components")
+    assert r.status_code == 200, "loopback must not demand a token it cannot protect"
+    assert "components" in r.json()
