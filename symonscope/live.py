@@ -37,7 +37,7 @@ NOT_EXPOSED = {
     "state":       "routed as GET /api/symonscope/live",
 }
 
-BOARD = "/models/control.board"
+BOARD = "/mnt/models/control.board"
 _ENTRY = re.compile(r"^\s*([a-z_]+)\s*=\s*(\d{2,5})", re.M)
 
 

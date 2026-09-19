@@ -19,6 +19,10 @@ TOKEN = uuid.uuid4().hex
 
 @pytest.fixture
 def client(monkeypatch):
+    # Bind wide, so the token this fixture sets is actually compared. On a loopback bind the
+    # guard returns before any comparison and every headers=auth() assertion below would hold
+    # whether the token were right, wrong or absent.
+    monkeypatch.setenv("SYM_SCOPE_HOST", "0.0.0.0")
     monkeypatch.setenv("SYM_SCOPE_TOKEN", TOKEN)
     import service
     importlib.reload(service)
@@ -41,6 +45,9 @@ def test_a_directory_with_no_bare_is_not_an_estate_tree(tmp_path):
 
 
 def test_health_is_public_but_the_rest_is_closed(monkeypatch):
+    # The bind address decides. Bind wide BEFORE the reload: on a loopback bind the guard
+    # returns early and the closure asserted below is never the code under test.
+    monkeypatch.setenv("SYM_SCOPE_HOST", "0.0.0.0")
     monkeypatch.delenv("SYM_SCOPE_TOKEN", raising=False)
     import service
     importlib.reload(service)
@@ -48,6 +55,19 @@ def test_health_is_public_but_the_rest_is_closed(monkeypatch):
     assert c.get("/api/symonscope/health").status_code == 200
     r = c.get("/api/symonscope/units")
     assert r.status_code == 503 and "SYM_SCOPE_TOKEN" in r.json()["detail"]
+
+
+def test_loopback_needs_no_token(monkeypatch):
+    """The other half of the same contract: on the loopback default there is no token to get
+    wrong, because a key defends traffic that leaves this machine and loopback traffic does
+    not leave it. Unset host AND unset token must still answer, or the provisioning step the
+    guard exists to remove comes back."""
+    monkeypatch.delenv("SYM_SCOPE_HOST", raising=False)
+    monkeypatch.delenv("SYM_SCOPE_TOKEN", raising=False)
+    import service
+    importlib.reload(service)
+    c = TestClient(service.app)
+    assert c.get("/api/symonscope/units").status_code == 200
 
 
 def test_a_wrong_token_is_401(client):

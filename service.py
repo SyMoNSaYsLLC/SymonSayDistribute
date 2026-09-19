@@ -18,6 +18,7 @@ a model that recites an architecture and one that reads it.
 from __future__ import annotations
 
 import hmac
+import ipaddress
 import os
 import time
 from typing import Annotated, Any
@@ -41,7 +42,31 @@ app = FastAPI(
 )
 
 
+def _open_on_loopback() -> bool:
+    """A key is for traffic that leaves this machine. Loopback traffic does not.
+
+    Garrett, 2026-09-19: "i do not need keys for hardware to hardware endpoints. If endpoint to
+    endpoint is not routing through the internet we do not need those."
+
+    The reason is worth writing down: a token on a 127.0.0.1 bind defends only against a caller
+    who already has code execution on this host — and such a caller can read the token itself.
+    It costs a provisioning step and buys nothing.
+
+    So the BIND ADDRESS decides, not a convention. Off-loopback the token is required, and an
+    unset one closes the unit: a unit that becomes reachable through a config change must not
+    become public through that same change.
+    """
+    host = (os.environ.get("SYM_SCOPE_HOST") or "127.0.0.1").strip()
+    if host.lower() in ("localhost", ""):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False          # a name we cannot prove is loopback is treated as reachable
+
 def require_token(authorization: Annotated[str | None, Header()] = None) -> None:
+    if _open_on_loopback():
+        return
     expected = (os.environ.get("SYM_SCOPE_TOKEN") or "").strip()
     if not expected:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
