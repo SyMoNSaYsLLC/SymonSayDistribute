@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses a writable acquired upstream source tree
-# staged: no — asks about worktrees on disk, not about staged bytes
+# target: worktree — asks whether an acquired tree has been modified on disk
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # R1: acquired upstream source is read-only. A modified upstream tree makes the pin a lie — the

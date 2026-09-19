@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses a capability that no endpoint reaches
-# staged: yes — scans a package for capabilities without routes
+# target: content — a capability added without a route is added in the staged bytes
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # A runtime that can do something the network cannot ask for has a capability the estate cannot

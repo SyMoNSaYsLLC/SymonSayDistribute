@@ -31,7 +31,9 @@ set -o pipefail
 GATE_HOME=__GATE_HOME__
 [ -x "$GATE_HOME/gate" ] || exit 0
 STAGED=$(git diff --cached --name-only --diff-filter=ACM)
-skipped=""
+skipped=""; untargeted=""
+WORKTREE=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+ESTATE="/mnt/SymonSayDistribute /mnt/SymonSaySource /mnt/SymonSayOSS /mnt/SymonSayOpen"
 [ -n "$STAGED" ] || exit 0
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/pre-commit-gate-XXXXXX") || exit 0
 trap 'rm -rf "$TMP"' EXIT
@@ -44,12 +46,31 @@ rc=0
 # Each gate declares whether it applies to STAGED CONTENT, in its own header. A hardcoded
 # list here is how seven gates were installed, reported as installed, and never fired. A
 # declaration in the gate is visible to anyone reading the gate; a list somewhere else is not.
-for g in $(cd "$GATE_HOME/gates" && grep -l '^# staged: yes' *.sh 2>/dev/null | sed 's/\.sh$//'); do
-  out=$("$GATE_HOME/gate" "$g" "$TMP" 2>&1); grc=$?
+# Every gate runs. Each declares WHAT to point it at, not whether to bother:
+#   content   the staged bytes, exported to a temporary directory
+#   worktree  the repository being committed to — a real path on a real filesystem
+#   estate    every tree, for questions that need more than one
+#   none      an operator tool with no commit-time question
+#
+# Skipping was the wrong answer twice. First a hardcoded list left seven gates installed and
+# never firing. Then "run everything against the staged export" made on-disk refuse the
+# export for being tmpfs — the gate working correctly on a question nobody had asked it.
+# A gate with the wrong target is not an inapplicable gate.
+for g in $(cd "$GATE_HOME/gates" && ls -1 *.sh | sed 's/\.sh$//'); do
+  want=$(sed -n 's/^# target: \([a-z]*\).*/\1/p' "$GATE_HOME/gates/$g.sh" | head -1)
+  case "${want:-content}" in
+    content)  arg="$TMP" ;;
+    worktree) arg="$WORKTREE" ;;
+    estate)   arg="$ESTATE" ;;
+    none)     untargeted="$untargeted $g"; continue ;;
+    *)        arg="$TMP" ;;
+  esac
+  out=$("$GATE_HOME/gate" "$g" $arg 2>&1); grc=$?
   if [ $grc -eq 1 ]; then echo "commit refused by gate '$g':"; echo "$out" | sed 's/^/  /'; rc=1
   elif [ $grc -eq 2 ]; then skipped="$skipped $g"; fi
 done
-[ -z "$skipped" ] || echo "gates not applicable to this change:$skipped"
+[ -z "$untargeted" ] || echo "operator tools, no commit-time question:$untargeted"
+[ -z "$skipped" ] || echo "gates that did not apply here:$skipped"
 [ $rc -eq 0 ] || echo "
 Nothing was committed. Fix the above, or commit with --no-verify if this is a
 deliberate exception you can name."

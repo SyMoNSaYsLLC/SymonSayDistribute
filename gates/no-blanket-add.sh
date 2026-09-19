@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses `git add .` and `git add -A` anywhere in the tree
-# staged: yes — scans content for the forbidden staging form
+# target: content — the staged bytes are what becomes history
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # Section 3.2 forbids a blanket stage outright. This estate holds a live API key, multi-gigabyte

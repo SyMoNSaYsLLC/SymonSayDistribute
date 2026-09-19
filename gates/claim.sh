@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # one-line: tests a claim about a path before anything is built on it
-# staged: no — takes a claim to test; there is none to infer from a commit
+# target: none — an operator tool, invoked with a claim to test; a commit carries no claim, and inventing one would be a check that cannot fail
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # Section 3.1d, test before deciding. A claim carried forward from a summary, a report or an

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses the same tool existing at several paths with different contents
-# staged: no — needs several roots to compare; a commit has one
+# target: estate — asks whether this tool already exists elsewhere, which needs every tree
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 #   no-divergent-copy.sh <path> [more paths ...]
