@@ -62,6 +62,20 @@ printf 'def exposed(): pass\ndef forgotten(): pass\n'                        > "
 printf 'from . import cap\n@app.post("/x")\ndef x(): return cap.exposed()\n' > "$GOOD/svc/pkg/service.py"
 printf 'NOT_EXPOSED = {"internal": "every caller goes through exposed()"}\ndef exposed(): pass\ndef internal(): pass\n' > "$GOOD/svc/pkg/cap.py"
 
+# A contract that does not declare what the code reads, and one that does. The pattern form
+# is in the good fixture because a name built by f-string at run time cannot be found by
+# reading code, and a contract entry for the pattern is the only thing that can cover it.
+mkdir -p "$BAD/contract" "$GOOD/contract"
+printf 'import os\nos.environ.get("SYM_DECLARED")\nos.environ.get("SYM_MISSING")\n' > "$BAD/contract/app.py"
+printf 'SYM_DECLARED=x\n' > "$BAD/contract/symoneural-learn.env.example"
+printf 'import os\nos.environ.get("SYM_DECLARED")\nos.environ.get("SYM_CHAT_ENABLED")\n' > "$GOOD/contract/app.py"
+printf 'SYM_DECLARED=x\nSYM_<NAME>_ENABLED=\n' > "$GOOD/contract/symoneural-learn.env.example"
+
+# A recipe with no LICENSE, and one with a licence and a checksum.
+mkdir -p "$BAD/recipes" "$GOOD/recipes"
+printf 'SUMMARY = "no licence"\nSRC_URI = "git://example"\n' > "$BAD/recipes/thing_git.bb"
+printf 'SUMMARY = "declared"\nLICENSE = "MIT"\nLIC_FILES_CHKSUM = "file://COPYING;md5=0"\n' > "$GOOD/recipes/thing_git.bb"
+
 pass=0; fail=0
 check() { # check <gate> <fixture> <expect: FAIL|PASS> <extra args...>
   local g=$1 fixture=$2 expect=$3; shift 3
@@ -99,6 +113,10 @@ check claim             "$HERE/gate"        PASS   executable
 # claim fail HERE rather than three steps later inside whatever was built on it.
 check claim             "$WORK/absent"      FAIL   exists
 check claim             "$HERE"             FAIL   file
+check contract-declared "$BAD/contract"     FAIL
+check contract-declared "$GOOD/contract"    PASS
+check recipe-licence    "$BAD/recipes"      FAIL
+check recipe-licence    "$GOOD/recipes"     PASS
 check endpoints-current "$BAD/svc"          FAIL
 check endpoints-current "$GOOD/svc"         PASS
 check no-predictable-tmp "$BAD/tmpfile.sh"  FAIL
