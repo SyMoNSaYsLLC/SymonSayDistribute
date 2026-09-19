@@ -487,7 +487,28 @@ def _shell_commands(text: str) -> set[str]:
     `code`, resolved to an installed editor, and failed the unit on an unstated licence. An
     assignment is dropped too: `x=1` is not an invocation of `x`.
     """
-    stripped = re.sub(r"'[^']*'", " ", text, flags=re.S)
+    # A HEREDOC BODY IS NOT SHELL. `python3 - <<PY ... PY` is a Python program, and its keywords
+    # sit exactly where a shell command would: `import` resolves to ImageMagick's import(1) and
+    # `print` to mailcap's print(1), so two embedded Python programs added two components with
+    # unstated licences and failed a unit that runs neither program.
+    def _strip_heredocs(s: str) -> str:
+        out, lines, i = [], s.split("\n"), 0
+        while i < len(lines):
+            line = lines[i]
+            m = re.search(r"<<-?\s*[\"']?([A-Za-z_][A-Za-z0-9_]*)[\"']?", line)
+            if m:
+                word = m.group(1)
+                out.append(line[:m.start()])
+                i += 1
+                while i < len(lines) and lines[i].strip() != word:
+                    i += 1
+                i += 1
+                continue
+            out.append(line); i += 1
+        return "\n".join(out)
+
+    stripped = _strip_heredocs(text)
+    stripped = re.sub(r"'[^']*'", " ", stripped, flags=re.S)
     stripped = re.sub(r'"[^"]*"', " ", stripped, flags=re.S)
     found = set()
     for m in re.finditer(r'(?:^|[|;&(`]|\$\(|\b(?:then|else|do|elif)\s)\s*([a-zA-Z][a-zA-Z0-9._+-]*)\s*(=?)', stripped, re.M):
