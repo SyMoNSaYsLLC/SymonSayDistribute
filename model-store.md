@@ -45,7 +45,8 @@ Tagged `model-store/v<version>`.
 
 ## Over HTTP
 
-Five routes. Placement is deliberately **not** among them: putting thirteen gigabytes
+Five routes on `127.0.0.1:8812`, the port `/models/control.board` assigns to `store`.
+Placement is deliberately **not** among them: putting thirteen gigabytes
 somewhere is an act with a filesystem, free space and a licence to check, and it stays a
 command somebody runs with their hands. A surface that could place a model by accident is a
 surface that will.
