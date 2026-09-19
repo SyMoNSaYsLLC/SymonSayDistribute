@@ -20,6 +20,7 @@ NOT_EXPOSED = {
     "store_root": "reported inside /api/store/where and /api/store/models",
     "manifest": "routed as GET /api/store/models/{name}",
     "provenance": "returned inside GET /api/store/models/{name}",
+    "write_manifest": "routed as POST /api/store/models/{name}/manifest",
     "StoreError": "an exception type",
 }
 
@@ -31,6 +32,9 @@ from pathlib import Path
 from typing import Any
 
 RECORDS = {"MANIFEST.sha256.json", "NOTICE", "PROVENANCE.md"}
+# Directories in the store that are not models. Named rather than guessed at: a rule
+# like "has a weight file" would silently drop a model whose format we do not know.
+NOT_A_MODEL = {"plugins", "lost+found", ".trash"}
 
 
 class StoreError(Exception):
@@ -92,6 +96,11 @@ def models() -> list[dict[str, Any]]:
         return []
     out = []
     for d in sorted(p for p in root.iterdir() if p.is_dir()):
+        # Not every directory in the store is a model. `plugins` holds manifests; listing it as
+        # a model with no manifest was a false positive that made the unverifiable count wrong,
+        # which is worse than useless — the one number an operator would act on.
+        if d.name in NOT_A_MODEL:
+            continue
         man = d / "MANIFEST.sha256.json"
         row: dict[str, Any] = {"name": d.name, "path": str(d),
                                "files": sum(1 for p in d.iterdir() if p.is_file())}
@@ -131,6 +140,48 @@ def provenance(name: str) -> str:
     if not p.is_file():
         raise StoreError(f"{name} carries no provenance record")
     return p.read_text()
+
+
+def write_manifest(name: str, version: str = "", note: str = "") -> dict[str, Any]:
+    """Give a model in the store a manifest it never had.
+
+    `place` writes one for anything it puts there. A model that arrived some other way has
+    none, and a model with no manifest cannot be verified against anything — which was true of
+    /models/registry, holding thirteen gigabytes nothing could check.
+
+    This does NOT overwrite. A manifest that already exists is the record of what the model was
+    when it was placed; replacing it with a hash of whatever is there now would turn a check
+    into a tautology, and drift would become undetectable at the moment it was recorded.
+    """
+    d = store_root() / name
+    if not d.is_dir():
+        raise StoreError(f"no model {name!r} in {store_root()}")
+    man = d / "MANIFEST.sha256.json"
+    if man.is_file():
+        raise StoreError(
+            f"{name} already has a manifest. Replacing it would hash whatever is there now and "
+            "call that the original, which makes drift undetectable. Use verify instead.")
+    files = {}
+    for p in sorted(d.iterdir()):
+        if p.is_file() and p.name not in RECORDS:
+            files[p.name] = {"sha256": sha256(p), "bytes": p.stat().st_size}
+    if not files:
+        raise StoreError(f"{name} holds no files to record")
+    import time
+    body = {"schema": "symoneural-model-store/1", "name": name,
+            "version": version or "unversioned",
+            "recorded": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            "store": str(store_root()),
+            "recorded_after_the_fact": True,
+            "note": note or ("Recorded from the files as found. This is a baseline, not a "
+                             "provenance record: it says what is here now, not that it is what "
+                             "arrived. Drift from this point forward is detectable; drift "
+                             "before it is not."),
+            "files": files,
+            "total_bytes": sum(v["bytes"] for v in files.values())}
+    man.write_text(json.dumps(body, indent=1, sort_keys=True) + "\n")
+    return {"name": name, "files": len(files), "total_bytes": body["total_bytes"],
+            "manifest": str(man), "baseline": True}
 
 
 def verify(name: str) -> dict[str, Any]:

@@ -102,6 +102,24 @@ def verify(name: str, _: Authed) -> dict[str, Any]:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
+@app.post("/api/store/models/{name}/manifest")
+def make_manifest(name: str, _: Authed, version: str = "", note: str = "") -> dict[str, Any]:
+    """Record a baseline manifest for a model that has none.
+
+    It refuses to overwrite. An existing manifest is the record of what the model was when it
+    was placed; replacing it with a hash of whatever is there now would turn the check into a
+    tautology and make drift undetectable at the moment of recording.
+
+    What it writes is marked `recorded_after_the_fact`, because a baseline is not provenance:
+    it says what is here now, not that this is what arrived.
+    """
+    try:
+        return S.write_manifest(name, version, note)
+    except S.StoreError as e:
+        raise HTTPException(status.HTTP_409_CONFLICT if "already has" in str(e)
+                            else status.HTTP_404_NOT_FOUND, detail=str(e))
+
+
 def main() -> None:
     import uvicorn
     uvicorn.run(app, host=os.environ.get("SYM_STORE_HOST", "127.0.0.1"),
