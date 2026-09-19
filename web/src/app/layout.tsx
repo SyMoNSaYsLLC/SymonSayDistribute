@@ -41,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="brand">
               {/* Placeholder mark. The real one is symoneural-mark-teal.svg; it is
                   not used yet because every asset in ~/Desktop/brand is dated
-                  2026-08-16 and rules section 3.2 bars August material. */}
+                  2026-08-16 and rules section 3.2 bars August material. */} {/* gate-allow: no-august — records the exclusion */}
               <div className="brand-mark" aria-hidden="true" />
               <span className="brand-name">SyMoNeuRaL</span>
             </div>

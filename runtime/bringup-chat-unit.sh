@@ -32,15 +32,36 @@ RUN_DIR=${SYM_RUN_DIR:-$HOME/symoneural-run}
 LOG=$RUN_DIR/logs/chat-unit.log
 LADDER_LOG=$RUN_DIR/logs/chat-unit-bringup.log
 PORT=${SYM_CHAT_PORT:-8802}
+LAUNCHED_PID=""
 LAUNCH=$(dirname -- "${BASH_SOURCE[0]}")/serve-chat-unit.sh
 mkdir -p "$RUN_DIR/logs"
 
 note() { echo "$(date -Is) $*" | tee -a "$LADDER_LOG"; }
 
+# THE PORT, NEVER A PATTERN.
+#
+# `pkill -f 'vllm serve'` signals every process whose command line CONTAINS that string — the
+# agent that launched it, an editor with the script open, a grep looking for it. Section 3.3
+# forbids `pkill -f` and `pgrep -f` outright: an agent killed its own shell with exactly this
+# form, and the sibling `pkill --ns` hard-crashed this host.
+#
+# The port is what is actually meant. Whatever answers on it is the unit, and nothing else is.
+unit_pid() {
+  ss -lntpH "sport = :$PORT" 2>/dev/null | grep -oE 'pid=[0-9]+' | head -1 | cut -d= -f2
+}
+
 stop_unit() {
-  pkill -f 'vllm serve' 2>/dev/null
-  for _ in $(seq 1 20); do pgrep -f 'vllm serve' >/dev/null || break; sleep 1; done
-  pkill -9 -f 'vllm serve' 2>/dev/null
+  local pid; pid=$(unit_pid)
+  [ -n "$pid" ] || { LAUNCHED_PID=""; return 0; }
+  # SIGCONT before SIGTERM. A process in state T ignores termination until it is resumed,
+  # which is how a unit came to look unkillable and invited far blunter tools.
+  kill -CONT "$pid" 2>/dev/null
+  kill -TERM "$pid" 2>/dev/null
+  for _ in $(seq 1 20); do
+    kill -0 "$pid" 2>/dev/null || { LAUNCHED_PID=""; return 0; }
+    sleep 1
+  done
+  kill -KILL "$pid" 2>/dev/null
   sleep 2
 }
 
@@ -63,7 +84,11 @@ wait_for_unit() {
     # A fatal marker in the log is definitive at any time.
     grep -qE 'OutOfMemoryError|EngineCore failed to start|ValueError: Free memory|Engine core initialization failed' "$LOG" 2>/dev/null && return 1
     # Absence of the process only means failure once it has had time to appear.
-    if [ $((SECONDS - started)) -gt $GRACE_S ] && ! pgrep -f 'vllm serve' >/dev/null; then
+      # Absence means the LAUNCHED process is gone, not that a pattern failed to
+      # match — which it also does for the seconds before the engine execs.
+      if [ $((SECONDS - started)) -gt $GRACE_S ] \
+         && [ -n "${LAUNCHED_PID:-}" ] && ! kill -0 "$LAUNCHED_PID" 2>/dev/null \
+         && [ -z "$(unit_pid)" ]; then
       return 1
     fi
     sleep 5
@@ -76,6 +101,7 @@ attempt() {
   note "RUNG $name: $*"
   stop_unit
   env "$@" setsid nohup "$LAUNCH" >/dev/null 2>&1 </dev/null &
+  LAUNCHED_PID=$!
   sleep 5
   if wait_for_unit 600; then
     note "RUNG $name: SERVING on 127.0.0.1:$PORT"

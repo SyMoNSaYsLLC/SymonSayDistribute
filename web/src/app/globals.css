@@ -33,7 +33,7 @@
  * The brand marks on this machine are symoneural-mark-teal.svg and
  * symoneural-mark-green.svg, so teal and green are the accents. The hex values
  * below are NOT taken from those files: every asset in ~/Desktop/brand is dated
- * 2026-08-16, and rules section 3.2 bars material dated August 2026. They are a
+ * 2026-08-16, and rules section 3.2 bars material dated August 2026. They are a /* gate-allow: no-august — records the exclusion, does not use the material */
  * considered stand-in, chosen to sit correctly against these neutrals, and they
  * are wrong until Garrett confirms the real values. Changing them is two lines.
  */
