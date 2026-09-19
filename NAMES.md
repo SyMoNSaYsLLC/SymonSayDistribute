@@ -123,7 +123,8 @@ What stops the estate from accepting work it cannot serve.
 
 ## E. Residency and buffers — `symonpayload/residency.py`
 
-**NAMED AND SOURCED, NOT BUILT.** Needs per-device residency measurement.
+**BUILT.** The residency measurement came from ravencalc against the real checkpoint:
+32 experts with 4 active, 12.62 MiB per expert per layer, 9.467 GiB for all of them.
 
 What is held, where, and for how long. The arithmetic belongs to ravencalc; this is the
 bookkeeping around it.
@@ -169,9 +170,9 @@ Running the same thing many ways on purpose, and recording what happened.
 | B. Batch formation | 12 | **Built**, tested |
 | C. Scheduling and dispatch | 13 | **Built** (12; the 13th is the engine) |
 | D. Flow control | 8 | **Built**, tested, against a real measurement |
-| E. Residency and buffers | 9 | Named and sourced, not built |
+| E. Residency and buffers | 9 | **Built**, tested, against a real measurement |
 | F. Sweeps and evaluation | 10 | **Built**, tested |
-| **Total** | **60** | **50 built, 10 named** |
+| **Total** | **60** | **59 built, 1 not ours** |
 
 ## Why C and E are not built
 
@@ -181,15 +182,21 @@ benchmark through the gateway at 32k context. The headline is the ratio — conc
 the assumption of linear scaling would have climbed into a configuration where everyone waits
 longer for no more work done.
 
-## Why C and E are still not built
+## All six modules are built
 
-They need **measured** inputs this host cannot supply while the engine holds the card: observed
-latency, observed token rate, per-device residency. `AdaptiveThrottle` moving a ceiling on an
-invented number is the "number produced from an assumption" that ravencalc exists to refuse.
-Built against guesses they would pass their own tests and be wrong on the machine.
+The sixty names are done, bar one. `symon-vector-engine` stays unbuilt because it is the
+engine itself — this unit sits in front of it, and building a second one here would be building
+the thing the estate already serves.
 
-F is built. It needed no measurement, which is exactly why it was the one that could be.
+Three of the six waited on measurements, and all three measurements were taken rather than
+assumed:
 
-Every one of the forty has its licence already settled — same sources, same verdict,
-SymonSayDistribute under the proprietary licence — so none of them is blocked on a placement
-question. They are blocked on a measurement window, and F is blocked on nothing.
+| module | what it waited for | what was measured |
+|---|---|---|
+| D. Flow control | observed latency and token rate | 6.8 tok/s at concurrency 1, 11.2 at 2, p50 19.02 s |
+| E. Residency | per-device residency | 32 experts, 4 active, 12.62 MiB each per layer |
+| C. Dispatch | somewhere to dispatch to | the gateway, reached through an injected sender |
+
+The one that changed the design most was D's: concurrency 2 bought **1.65x, not 2x**, and each
+stream slowed from 6.84 to 5.6 tok/s. Written against an assumption of linear scaling, the
+throttle would have climbed into a configuration where everyone waits longer for no more work.
