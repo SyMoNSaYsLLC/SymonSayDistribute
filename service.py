@@ -66,10 +66,10 @@ def _open_on_loopback() -> bool:
 def require_token(authorization: Annotated[str | None, Header()] = None) -> None:
     if _open_on_loopback():
         return
-    expected = (os.environ.get("SYM_IMAGE_TOKEN") or "").strip()
+    expected = (os.environ.get("SYM_SYMONIMAGE_TOKEN") or "").strip()
     if not expected:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
-                            detail="symonimage is unconfigured: SYM_IMAGE_TOKEN is not set")
+                            detail="symonimage is unconfigured: SYM_SYMONIMAGE_TOKEN is not set")
     got = (authorization or "").removeprefix("Bearer ").strip()
     if not hmac.compare_digest(got, expected):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="bad token")
@@ -98,7 +98,7 @@ class GenerateIn(BaseModel):
 def health() -> dict[str, Any]:
     """Public; answers before the unit is configured and before the card is free."""
     return {"unit": UNIT, "status": "ok", "uptime_s": round(time.time() - STARTED, 1),
-            "configured": bool((os.environ.get("SYM_IMAGE_TOKEN") or "").strip())}
+            "configured": bool((os.environ.get("SYM_SYMONIMAGE_TOKEN") or "").strip())}
 
 
 @app.get("/api/symonimage/version")

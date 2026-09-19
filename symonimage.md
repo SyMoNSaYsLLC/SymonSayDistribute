@@ -77,7 +77,7 @@ refuses.
     GET  /api/symonimage/ready      everything generate checks, without generating
     POST /api/symonimage/generate   one image, or a refusal naming what is in the way
 
-Health is public; the rest need `SYM_IMAGE_TOKEN`, and an unset token closes the unit.
+Health is public; the rest need `SYM_SYMONIMAGE_TOKEN`, and an unset token closes the unit.
 
 Three public callables carry no route and say so in `NOT_EXPOSED`: `binary` and `store` resolve
 environment variables and are reported inside `version` and `weights`; `card` is served inside
@@ -129,6 +129,6 @@ Running on 8822 and routed: registered in `/models/control.board`, present in th
 wiring table (`unknown_on_board()` empty, 12 components routable), and reachable as three
 agent tools — `image_room`, `image_ready`, `image_generate`.
 
-**Not yet commissioned.** `SYM_IMAGE_TOKEN` is unprovisioned, so health answers and every
+**Not yet commissioned.** `SYM_SYMONIMAGE_TOKEN` is unprovisioned, so health answers and every
 other route returns 503 by design. Generating a secret is Garrett's alone (R13), and until he
 does the unit is wired but closed.

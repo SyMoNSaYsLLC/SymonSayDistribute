@@ -19,7 +19,7 @@ def client(monkeypatch):
     # On a loopback bind the guard returns before comparing anything, which would
     # make every authenticated test here pass with a wrong token or none at all.
     monkeypatch.setenv("SYM_IMAGE_HOST", "0.0.0.0")
-    monkeypatch.setenv("SYM_IMAGE_TOKEN", TOKEN)
+    monkeypatch.setenv("SYM_SYMONIMAGE_TOKEN", TOKEN)
     import service
     importlib.reload(service)
     return TestClient(service.app)
@@ -131,7 +131,7 @@ def test_health_is_public_and_the_rest_is_closed(monkeypatch):
     unit: becoming reachable through a config change must not make it public through that same
     change. The host is set before the reload so the guard is in its off-loopback mode."""
     monkeypatch.setenv("SYM_IMAGE_HOST", "0.0.0.0")
-    monkeypatch.delenv("SYM_IMAGE_TOKEN", raising=False)
+    monkeypatch.delenv("SYM_SYMONIMAGE_TOKEN", raising=False)
     import service
     importlib.reload(service)
     c = TestClient(service.app)
@@ -143,7 +143,7 @@ def test_loopback_needs_no_token(monkeypatch):
     """The other half of the contract: on the loopback default no token is asked for, because a
     token on a 127.0.0.1 bind defends only against a caller who could already read the token."""
     monkeypatch.delenv("SYM_IMAGE_HOST", raising=False)
-    monkeypatch.delenv("SYM_IMAGE_TOKEN", raising=False)
+    monkeypatch.delenv("SYM_SYMONIMAGE_TOKEN", raising=False)
     import service
     importlib.reload(service)
     c = TestClient(service.app)
