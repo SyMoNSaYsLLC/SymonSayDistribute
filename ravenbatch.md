@@ -88,10 +88,12 @@ the behaviour at the window boundary is testable rather than a race.
 
 ## Testing
 
-50 tests, and most of them are refusals: ingress at capacity naming the number, a token ceiling
+78 tests, and most of them are refusals: ingress at capacity naming the number, a token ceiling
 naming both numbers, a request too large to ever batch saying it belonged at admission, ragged
 stacking, padding below the longest member, a missing body named by id, an empty batch that
-cannot be constructed at all.
+cannot be constructed at all. Over HTTP: an unset token answering 503 rather than opening, a
+missing policy variable named in the 503, a refusal answering 429 rather than 400, and eight
+unbuilt routes asserted to be 404 so a stub cannot appear without a test failing.
 
     cd /mnt/SymonSayDistribute/ravenbatch && python3 -m pytest tests/ -q
 
@@ -106,12 +108,42 @@ holds the card: observed latency, observed token rate, per-device residency. An
 from an assumption" that ravencalc exists to refuse. Building them against guesses would have
 produced four modules that pass their own tests and are wrong on the machine.
 
-## No HTTP surface yet
+## Over HTTP
 
-ravenbatch is a library at this version. The surface belongs with dispatch, because the routes
-worth exposing are "what is queued", "what is forming" and "what was sent" — and the last of
-those does not exist yet. A service exposing two of three would need a port and a token to
-answer half a question.
+Thirteen routes on `127.0.0.1:8814`, the port `/models/control.board` assigns to `ravenbatch`.
+Health is public; everything else needs `SYM_RAVENBATCH_TOKEN`, and an unset token closes the
+unit rather than opening it.
+
+    GET  /api/ravenbatch/health              public; answers before the unit is configured
+    POST /api/ravenbatch/requests/submit     admit one; `tokens` is required and counted
+    POST /api/ravenbatch/requests/batch      admit many; partial success is reported
+    POST /api/ravenbatch/requests/triage     which lane, and why
+    POST /api/ravenbatch/payloads/coalesce   group by the caller's declared fingerprint
+    GET  /api/ravenbatch/queue/status        depth, tokens pending, refusals since start
+    POST /api/ravenbatch/queue/prioritize    the resulting order, and the policy behind it
+    POST /api/ravenbatch/batches/form        form one, and report which bound tripped
+    POST /api/ravenbatch/shapes/stack        will these stack, and to what shape
+    POST /api/ravenbatch/shapes/concatenate  the total, and the boundaries to split it again
+    POST /api/ravenbatch/shapes/pack         rows, and what packing wastes
+    POST /api/ravenbatch/tokens/plan         the padding plan, and what it wastes
+    POST /api/ravenbatch/tokens/reservoir    fill level and remaining — two numbers, not one
+
+Not `/v1/`. That namespace is the Messages dialect the gateway serves to third-party clients
+and its paths are fixed by them; nothing outside this host speaks to ravenbatch. See
+[api.md](api.md) for the full mapping from the generic reference, with a verdict on every
+route.
+
+**Policy has no defaults over HTTP either.** `SYM_RAVENBATCH_MAX_TOKENS` and
+`SYM_RAVENBATCH_CAPACITY` are read from the environment and the unit answers 503 naming the
+missing variable rather than picking a number. A 503 that names a knob is something an
+operator can fix; a default is a decision nobody made.
+
+**The API is derived from the components, never the other way round.** The reference document
+has twenty-seven routes; sixteen describe components that do not exist, and those are not
+carried anywhere — no stub, no 501, no declared contract. Their components stay named and
+placed in [NAMES.md](NAMES.md), and each gets a route designed against what it actually does
+once it is built, which is a better route than one designed against what it was imagined to
+do.
 
 ## Releases
 

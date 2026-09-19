@@ -1,0 +1,210 @@
+// SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
+// Copyright 2026 SymonSaysLLC
+//
+// ravenbatch — admission and batch formation.
+//
+// DEFINITION ONLY. THERE IS NO SERVER.
+// Nothing in this estate speaks gRPC and no consumer asks for it. This file records the shape
+// in a form other tooling can read; it is not a surface that answers. A .proto that reads as
+// live is the same phantom the image unit was marked for.
+//
+// It declares the THIRTEEN methods that have code behind them, not the twenty-seven of the
+// reference document. Declaring an rpc for a component that does not exist would put the
+// phantom in a machine-readable file, where it is worse.
+//
+// The supplied reference proto was reformatted and completed, not copied: its source ran
+// tokens together (serviceAiBatchingService, rpcDispatchInference, messageIngressFramesResponse)
+// and was truncated mid-message across two code fences. It would not have compiled.
+
+syntax = "proto3";
+
+package symoneural.ravenbatch.v1;
+
+option go_package = "symoneural/ravenbatch/v1;ravenbatchv1";
+option java_multiple_files = true;
+option java_package = "com.symoneural.ravenbatch.v1";
+
+service RavenBatchService {
+  // Liveness. The only method that answers before the unit is configured.
+  rpc Health (HealthRequest) returns (HealthResponse);
+
+  // Admission
+  rpc Submit         (SubmitRequest)     returns (SubmitResponse);
+  rpc SubmitMany     (SubmitManyRequest) returns (SubmitManyResponse);
+  rpc Triage         (SubmitRequest)     returns (TriageResponse);
+  rpc Coalesce       (SubmitManyRequest) returns (CoalesceResponse);
+
+  // Queue
+  rpc QueueStatus    (Empty)             returns (QueueStatusResponse);
+  rpc QueueOrder     (Empty)             returns (QueueOrderResponse);
+
+  // Formation
+  rpc FormBatch      (FormBatchRequest)  returns (FormBatchResponse);
+
+  // Shapes. This unit stores no tensors, so nothing here takes or returns a tensor id.
+  rpc StackShapes    (ShapesRequest)     returns (StackShapesResponse);
+  rpc ConcatLengths  (LengthsRequest)    returns (ConcatLengthsResponse);
+  rpc PackLengths    (LengthsRequest)    returns (PackLengthsResponse);
+  rpc PlanPadding    (LengthsRequest)    returns (PlanPaddingResponse);
+
+  // Tokens
+  rpc Reservoir      (ReservoirRequest)  returns (ReservoirResponse);
+}
+
+message Empty {}
+
+message HealthRequest {}
+message HealthResponse {
+  string unit = 1;
+  string status = 2;
+  double uptime_s = 3;
+  bool configured = 4;
+}
+
+// `tokens` is counted by the caller. It is required and it is not estimated from prompt
+// length: a batch formed on a guessed count is a batch that does not fit.
+message SubmitRequest {
+  string request_id = 1;
+  int64 tokens = 2;
+  string tenant = 3;
+  // Optional. Absent means no claim on going first, which sorts last.
+  optional int64 deadline_ms = 4;
+  // Empty means "never coalesce me". Identity is the caller's declaration, never inferred.
+  string fingerprint = 5;
+  int64 at_ms = 6;
+}
+
+message SubmitResponse {
+  string request_id = 1;
+  bool queued = 2;
+  // Set when this request was coalesced into an in-flight one.
+  optional string coalesced_into = 3;
+  int32 queue_depth = 4;
+}
+
+message SubmitManyRequest { repeated SubmitRequest requests = 1; }
+
+message Admitted { string request_id = 1; optional string coalesced_into = 2; }
+message RefusedItem { string request_id = 1; string why = 2; }
+
+// Partial success is reported rather than rolled back silently.
+message SubmitManyResponse {
+  repeated Admitted admitted = 1;
+  repeated RefusedItem refused = 2;
+  int32 queue_depth = 3;
+}
+
+// No estimated_wait_ms. A wait is queue depth over a MEASURED service rate, and this host has
+// none while the engine holds the card. A wait computed from a guessed rate is worse than no
+// wait, because callers act on it.
+message TriageResponse {
+  string request_id = 1;
+  string lane = 2;              // "urgent" when a deadline is carried, else "bulk"
+  string why = 3;
+  string estimated_wait_omitted_because = 4;
+}
+
+message Leader { string request_id = 1; repeated string followers = 2; }
+message CoalesceResponse {
+  repeated Leader leaders = 1;
+  repeated string never_coalesced = 2;
+  int32 saved_calls = 3;
+}
+
+message QueueMetric {
+  string queue_name = 1;
+  int32 pending_items = 2;
+  int64 tokens_pending = 3;
+  int32 capacity = 4;
+}
+message QueueStatusResponse {
+  repeated QueueMetric queues = 1;
+  int32 refused_since_start = 2;
+}
+
+message QueueEntry { string request_id = 1; optional int64 deadline_ms = 2; }
+// Ordering is by deadline, not by a level a caller sets for itself: a settable level lets one
+// caller jump every queue by asking, a deadline is a claim checkable against the clock.
+message QueueOrderResponse {
+  repeated QueueEntry order = 1;
+  string policy = 2;
+}
+
+message FormBatchRequest {
+  int64 max_tokens = 1;
+  int32 max_requests = 2;
+  int64 window_ms = 3;
+  int64 now_ms = 4;
+  optional int64 opened_at_ms = 5;
+}
+
+// `bound` is as much the product as the batch. TOKENS means raise the ceiling or lower the
+// context; COUNT means raise the request limit; WINDOW means shorten the wait or add capacity;
+// DRAINED means the pending list ran out and the unit is under-loaded, not saturated.
+enum Bound {
+  BOUND_UNSPECIFIED = 0;
+  BOUND_TOKENS = 1;
+  BOUND_COUNT = 2;
+  BOUND_WINDOW = 3;
+  BOUND_DRAINED = 4;
+}
+
+message FormBatchResponse {
+  repeated string request_ids = 1;
+  int32 count = 2;
+  int64 tokens = 3;
+  Bound bound = 4;
+  string bound_means = 5;
+  int32 queue_depth = 6;
+}
+
+message Shape { repeated int64 dims = 1; }
+message ShapesRequest { repeated Shape shapes = 1; }
+// Ragged input is refused rather than padded: padding costs memory and changes the result's
+// shape, so it is a decision the caller makes with PlanPadding, never one taken here.
+message StackShapesResponse { Shape resulting_shape = 1; int32 members = 2; }
+
+message LengthsRequest {
+  repeated int64 lengths = 1;
+  optional int64 width = 2;     // required by PackLengths; optional pad-to for PlanPadding
+}
+
+message Boundary { int64 start = 1; int64 end = 2; }
+message ConcatLengthsResponse {
+  int64 total = 1;
+  int32 count = 2;
+  repeated Boundary boundaries = 3;
+}
+
+message Row { repeated int64 lengths = 1; }
+message PackLengthsResponse {
+  int32 rows = 1;
+  int64 width = 2;
+  repeated Row row_lengths = 3;
+  int64 used = 4;
+  int64 allocated = 5;
+  int64 wasted = 6;
+}
+
+message PlanPaddingResponse {
+  int64 width = 1;
+  int32 count = 2;
+  int64 used = 3;
+  int64 allocated = 4;
+  int64 wasted = 5;
+  double waste_fraction = 6;
+}
+
+message ReservoirRequest {
+  int64 per_window = 1;
+  optional int64 draw = 2;
+  bool refill = 3;
+}
+
+// Two different quantities. Returning one of them twice would read correct and say nothing.
+message ReservoirResponse {
+  int64 current_fill_level = 1;
+  int64 capacity_remaining = 2;
+  int64 per_window = 3;
+  int32 windows = 4;
+}
