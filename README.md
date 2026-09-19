@@ -86,7 +86,7 @@ hardware, the gateway binds loopback, and public reach is through the operator's
 
 ## Licence position
 
-`LICENSE` is **FSL-1.1-ALv2** — proprietary, source-available; not closed, not open
+`LICENSE` is **SymonSaysLLC Proprietary License 1.0** — proprietary, source-available; not closed, not open
 source. You may read, build and use it for anything that is not a competing commercial
 product or service, and each release becomes Apache-2.0 two years after it ships.
 Everything in this repository is covered because everything in it is first-party; see
