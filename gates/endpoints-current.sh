@@ -77,14 +77,23 @@ for d, cap in sorted(caps, key=lambda c: (str(c[0]), c[1])):
         continue
     m = ast.parse(f.read_text())
     declared = {}
+    # BOTH assignment forms. `NOT_EXPOSED = {...}` is an ast.Assign; the annotated
+    # `NOT_EXPOSED: dict[str, str] = {...}` is an ast.AnnAssign and was invisible here.
+    # The gate then saw an empty dict and refused a component whose declarations were
+    # correct — it failed CLOSED, which is the safe direction, but it rejected valid code
+    # and the author had no way to see why. Found 2026-09-19 while building symondriver.
     for node in m.body:
+        targets = []
         if isinstance(node, ast.Assign):
-            for t in node.targets:
-                if isinstance(t, ast.Name) and t.id == "NOT_EXPOSED":
-                    try:
-                        declared = ast.literal_eval(node.value)
-                    except Exception:
-                        declared = {}
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets = [node.target]
+        for t in targets:
+            if isinstance(t, ast.Name) and t.id == "NOT_EXPOSED":
+                try:
+                    declared = ast.literal_eval(node.value)
+                except Exception:
+                    declared = {}
     public = [node.name for node in m.body
               if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
               and not node.name.startswith("_")]
