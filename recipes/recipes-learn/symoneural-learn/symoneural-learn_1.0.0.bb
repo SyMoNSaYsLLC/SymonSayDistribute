@@ -15,7 +15,7 @@ SUMMARY = "SyMoNeuRaL SymonSayLearn composition - bring-up scripts"
 DESCRIPTION = "Bring-up scripts for the SymonSayLearn runtime. Installs no weights and no \
 credential."
 HOMEPAGE = "https://symoneural.com"
-LICENSE = "FSL-1.1-ALv2"
+LICENSE = "LicenseRef-SymonSaysLLC-Proprietary-1.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=f24be8021d54bb3ba168e56c716f6ee7"
 
 inherit symoneural-firstparty
@@ -42,7 +42,7 @@ do_install() {
     install -d ${D}${datadir}/symoneural-learn
     install -m 0644 ${S}/SOURCE-TREE ${D}${datadir}/symoneural-learn/SOURCE-TREE
 
-    # The terms travel with the runtime. LICENSE = "FSL-1.1-ALv2" is the SPDX token for the
+    # The terms travel with the runtime. LICENSE = "LicenseRef-SymonSaysLLC-Proprietary-1.0" is the SPDX token for the
     # Functional Source License (source-available, Apache-2.0 after two years); OE-core
     # ships its canonical text. Shipping the file is what makes the declaration checkable
     # on a target, and LIC_FILES_CHKSUM pins the exact Notice this build was made under.
