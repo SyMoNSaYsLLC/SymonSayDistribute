@@ -69,3 +69,82 @@ export async function toGateway(path: string, init: RequestInit = {}): Promise<R
     return dialectError(502, "unreachable", `the gateway did not answer: ${String(cause)}`);
   }
 }
+
+/* ------------------------------------------------------------------ estate services
+ *
+ * The board, the weight store and the agents runtime each answer on their own port with
+ * their own token. Same discipline as the gateway credential: the token is read here, from
+ * the environment, and never travels to a browser or into a page's props.
+ *
+ * An unconfigured service answers 503 naming the variable it wants. That is passed through
+ * rather than smoothed over — "unconfigured" and "broken" are different states, and a
+ * surface that renders them identically teaches an operator to ignore both.
+ */
+export const SERVICES: Record<string, { url: string; tokenEnv: string | null }> = {
+  board: { url: process.env.SYM_BOARD_URL ?? "http://127.0.0.1:8811", tokenEnv: "SYM_BOARD_TOKEN" },
+  store: { url: process.env.SYM_STORE_URL ?? "http://127.0.0.1:8812", tokenEnv: "SYM_STORE_TOKEN" },
+  agents: { url: process.env.SYM_AGENTS_URL ?? "http://127.0.0.1:8813", tokenEnv: "SYM_AGENTS_TOKEN" },
+};
+
+export interface ServiceResult {
+  component: string;
+  ok: boolean;
+  status: number;
+  /** Parsed body when the service answered with one, else null. */
+  data: unknown;
+  /** Why it did not answer, in words an operator can act on. */
+  why: string | null;
+}
+
+export async function fromService(
+  component: string,
+  path: string,
+  init: RequestInit = {},
+): Promise<ServiceResult> {
+  const svc = SERVICES[component];
+  if (!svc) {
+    return { component, ok: false, status: 0, data: null, why: `no such component: ${component}` };
+  }
+  const headers: Record<string, string> = { accept: "application/json" };
+  if (svc.tokenEnv) {
+    const token = (process.env[svc.tokenEnv] ?? "").trim();
+    if (!token) {
+      return {
+        component,
+        ok: false,
+        status: 503,
+        data: null,
+        why: `${component} is unconfigured: ${svc.tokenEnv} is not set in this server's environment`,
+      };
+    }
+    headers.authorization = `Bearer ${token}`;
+  }
+  try {
+    const r = await fetch(`${svc.url}${path}`, {
+      ...init,
+      headers: { ...headers, ...(init.headers as Record<string, string> | undefined) },
+      cache: "no-store",
+      signal: AbortSignal.timeout(6000),
+    });
+    const body = await r.text();
+    let data: unknown = null;
+    try {
+      data = body ? JSON.parse(body) : null;
+    } catch {
+      data = null;
+    }
+    const detail =
+      data && typeof data === "object" && "detail" in (data as Record<string, unknown>)
+        ? String((data as Record<string, unknown>).detail)
+        : null;
+    return { component, ok: r.ok, status: r.status, data, why: r.ok ? null : detail ?? `HTTP ${r.status}` };
+  } catch (e) {
+    return {
+      component,
+      ok: false,
+      status: 0,
+      data: null,
+      why: `${svc.url} is not answering: ${e instanceof Error ? e.message : String(e)}`,
+    };
+  }
+}
