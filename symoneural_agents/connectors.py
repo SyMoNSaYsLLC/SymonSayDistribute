@@ -119,6 +119,9 @@ NOT_EXPOSED = {
     "engine_serves":   "granted as a tool; enumerated by GET /api/agents/connectors",
     "engine_summary":  "granted as a tool; enumerated by GET /api/agents/connectors",
     "device_fit":      "granted as a tool; enumerated by GET /api/agents/connectors",
+    "image_room":      "granted as a tool; enumerated by GET /api/agents/connectors",
+    "image_ready":     "granted as a tool; enumerated by GET /api/agents/connectors",
+    "image_generate":  "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_fetch":      "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_browse":     "granted as a tool; enumerated by GET /api/agents/connectors",
     "estate_survey":  "granted as a tool; enumerated by GET /api/agents/connectors",
@@ -274,6 +277,35 @@ def device_fit(a: dict) -> Any:
     return _call("symonprobe", f"/api/symonprobe/fit?venv={venv}", timeout=180.0)
 
 
+def image_room(a: dict) -> Any:
+    """Is there room on the card to generate, and which process holds the rest."""
+    return _call("symonimage", "/api/symonimage/room", timeout=60.0)
+
+
+def image_ready(a: dict) -> Any:
+    """Everything a generation would check — runtime, weights, room — without generating."""
+    return _call("symonimage", "/api/symonimage/ready", timeout=120.0)
+
+
+def image_generate(a: dict) -> Any:
+    """Generate one image, or refuse naming what holds the card.
+
+    steps, width and height are required here for the same reason they are required in the
+    unit: they commit the one card for minutes, and a default is a number nobody chose.
+    """
+    if not (a.get("prompt") or "").strip():
+        raise ToolError("image_generate needs a prompt")
+    for k in ("steps", "width", "height"):
+        if k not in a:
+            raise ToolError(f"image_generate needs {k}; this unit does not default what the "
+                            f"card is asked to do")
+    body = {"prompt": a["prompt"], "steps": int(a["steps"]),
+            "width": int(a["width"]), "height": int(a["height"])}
+    if a.get("seed") is not None:
+        body["seed"] = int(a["seed"])
+    return _call("symonimage", "/api/symonimage/generate", "POST", body, timeout=960.0)
+
+
 
 CONNECTORS: list[Tool] = [
     Tool("board_settings", "Every configured setting in the estate, or one section. "
@@ -368,6 +400,19 @@ CONNECTORS: list[Tool] = [
          "architecture list rather than by the name of the build.",
          {"type": "object", "properties": {"venv": {"type": "string"}},
           "required": ["venv"]}, device_fit),
+    Tool("image_room", "Whether there is room on the card to generate an image right now, "
+         "and which process holds the rest of it.",
+         {"type": "object", "properties": {}}, image_room),
+    Tool("image_ready", "Everything an image generation would check — the runtime, the "
+         "weights and the room on the card — without generating anything.",
+         {"type": "object", "properties": {}}, image_ready),
+    Tool("image_generate", "Generate one image. Refuses, naming what holds the card, rather "
+         "than failing partway. steps, width and height are required.",
+         {"type": "object",
+          "properties": {"prompt": {"type": "string"}, "steps": {"type": "integer"},
+                         "width": {"type": "integer"}, "height": {"type": "integer"},
+                         "seed": {"type": "integer"}},
+          "required": ["prompt", "steps", "width", "height"]}, image_generate),
 ]
 
 
@@ -391,6 +436,8 @@ def connectors() -> list[dict]:
         "lora_plan": "symonlora",
         "engine_serves": "symonengine", "engine_summary": "symonengine",
         "device_fit": "symonprobe",
+        "image_room": "symonimage", "image_ready": "symonimage",
+        "image_generate": "symonimage",
     }
     try:
         table = {c["component"]: c for c in _fabric_get("/api/fabric/components")["components"]}
