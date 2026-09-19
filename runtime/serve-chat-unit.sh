@@ -61,6 +61,30 @@ if [ -n "${SYM_CPU_OFFLOAD_GB:-}" ] && [ "${SYM_CPU_OFFLOAD_GB}" != "0" ]; then
   echo "cpu offload : ${SYM_CPU_OFFLOAD_GB} GiB to host RAM" >> "$LOG"
 fi
 
+# HARMONY CHANNELS. Without these two flags this checkpoint APPEARS TO ANSWER NOTHING to any
+# prompt that pushes it toward tool use, and the failure is silent.
+#
+# Measured on 2026-09-19 against the unit running without them:
+#   "Reply with exactly: READY"   -> 42 tokens,  content "READY"
+#   "What is 2+2?"                -> 47 tokens,  content "4"
+#   "Use a tool."                 -> 150 tokens, content ""      <- generated, then discarded
+#   the same, with a tools[] block-> 150 tokens, content "", tool_calls null
+#
+# The model is generating in every case. gpt-oss emits into harmony channels — analysis and
+# commentary, which is where its tool calls live — and a server that parses neither drops
+# them, so the tokens are produced, billed and thrown away. It reads as a model that cannot
+# use tools; it is a server that cannot hear it.
+#
+# Registered names in vllm 0.27.1, read from the package rather than guessed:
+#   vllm/tool_parsers/__init__.py:149   "openai"        -> GptOssToolParser
+#   vllm/reasoning/__init__.py:63       "openai_gptoss" -> GptOssReasoningParser
+TOOLS=()
+if [ "${SYM_TOOL_CALLING:-1}" != "0" ]; then
+  TOOLS=(--enable-auto-tool-choice
+         --tool-call-parser "${SYM_TOOL_PARSER:-openai}"
+         --reasoning-parser "${SYM_REASONING_PARSER:-openai_gptoss}")
+fi
+
 # No --api-key: this unit binds loopback and the gateway on 9001 is the only thing
 # that talks to it. One trust boundary, one credential; a second key here would be
 # another copy of the same secret with its own way of going stale.
@@ -71,6 +95,7 @@ exec "$ENGINE_VENV/bin/vllm" serve "$MODEL_DIR" \
   --gpu-memory-utilization "${SYM_GPU_FRACTION:-0.90}" \
   --max-num-seqs "${SYM_MAX_SEQS:-4}" \
   "${OFFLOAD[@]}" \
+  "${TOOLS[@]}" \
   --enforce-eager \
   --disable-log-stats \
   --uvicorn-log-level info >> "$LOG" 2>&1
