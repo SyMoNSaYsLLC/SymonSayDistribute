@@ -26,6 +26,19 @@ def client(monkeypatch):
     return TestClient(service.app)
 
 
+@pytest.fixture
+def reachable_client(monkeypatch):
+    """The same unit bound off-loopback, so require_token is live rather than bypassed."""
+    monkeypatch.setenv("SYM_PAYLOAD_HOST", "0.0.0.0")
+    monkeypatch.setenv("SYM_PAYLOAD_TOKEN", TOKEN)
+    monkeypatch.setenv("SYM_PAYLOAD_MAX_TOKENS", "1000")
+    monkeypatch.setenv("SYM_PAYLOAD_CAPACITY", "8")
+    import service
+    importlib.reload(service)
+    service._GATE["keeper"] = None
+    return TestClient(service.app)
+
+
 def auth():
     return {"Authorization": f"Bearer {TOKEN}"}
 
@@ -40,6 +53,9 @@ def test_health_is_public_and_answers_unconfigured(monkeypatch):
 
 
 def test_no_token_closes_the_unit_rather_than_opening_it(monkeypatch):
+    # Off-loopback, before the reload: a unit that becomes reachable through a config change
+    # must not become public through that same change.
+    monkeypatch.setenv("SYM_PAYLOAD_HOST", "0.0.0.0")
     monkeypatch.delenv("SYM_PAYLOAD_TOKEN", raising=False)
     import service
     importlib.reload(service)
@@ -47,12 +63,29 @@ def test_no_token_closes_the_unit_rather_than_opening_it(monkeypatch):
     assert r.status_code == 503 and "SYM_PAYLOAD_TOKEN" in r.json()["detail"]
 
 
-def test_a_wrong_token_is_401_not_503(client):
-    r = client.get("/api/symonpayload/queue/status", headers={"Authorization": "Bearer wrong"})
+def test_a_wrong_token_is_401_not_503(reachable_client):
+    r = reachable_client.get("/api/symonpayload/queue/status",
+                             headers={"Authorization": "Bearer wrong"})
     assert r.status_code == 401
 
 
+def test_loopback_needs_no_token(monkeypatch):
+    """The other half of the same contract: on the 127.0.0.1 default the token defends nothing,
+    because a caller who can reach the port is already on this host and can read the token."""
+    monkeypatch.delenv("SYM_PAYLOAD_HOST", raising=False)     # the loopback default
+    monkeypatch.delenv("SYM_PAYLOAD_TOKEN", raising=False)
+    monkeypatch.setenv("SYM_PAYLOAD_MAX_TOKENS", "1000")      # policy set; only the token is not
+    monkeypatch.setenv("SYM_PAYLOAD_CAPACITY", "8")
+    import service
+    importlib.reload(service)
+    service._GATE["keeper"] = None
+    r = TestClient(service.app).get("/api/symonpayload/queue/status")
+    assert r.status_code == 200, "loopback must not demand a token it cannot protect"
+    assert r.json()["queues"][0]["capacity"] == 8
+
+
 def test_missing_policy_names_the_variable(monkeypatch):
+    monkeypatch.setenv("SYM_PAYLOAD_HOST", "0.0.0.0")
     monkeypatch.setenv("SYM_PAYLOAD_TOKEN", TOKEN)
     monkeypatch.delenv("SYM_PAYLOAD_MAX_TOKENS", raising=False)
     monkeypatch.setenv("SYM_PAYLOAD_CAPACITY", "8")
