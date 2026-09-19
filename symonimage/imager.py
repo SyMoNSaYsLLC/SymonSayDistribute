@@ -37,7 +37,7 @@ from typing import Any
 # have taken them. Verified against the tree's own SHA256SUMS, rc=0.
 DEFAULT_BIN = ("/home/google/symoneural-recovered/symon-image-from-tmpfs-trash-2026-09-19/"
                "tmp.bjhN6ZnJrG/home/image/bin/symoneural-image")
-DEFAULT_STORE = "/models/symon-imager"
+DEFAULT_STORE = "/mnt/models/symon-imager"
 
 # What one generation needs resident on the card, measured from the placed weights rather
 # than estimated. It is the size of what has to be in memory at once.
