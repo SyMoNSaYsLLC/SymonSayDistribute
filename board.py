@@ -35,7 +35,7 @@ from __future__ import annotations
 import argparse, json, os, re, subprocess, sys
 from pathlib import Path
 
-DEFAULT_BOARD = os.environ.get("SYM_BOARD") or "/models/control.board"
+DEFAULT_BOARD = os.environ.get("SYM_BOARD") or "/mnt/models/control.board"
 
 # Every public callable here is either routed by service.py or listed below with the reason it
 # is not. The endpoints-current gate enforces that: silence is the failure, because a

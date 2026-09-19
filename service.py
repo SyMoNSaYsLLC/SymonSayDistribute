@@ -21,6 +21,7 @@ a stale number gets believed, which is the failure the board exists to prevent.
 """
 from __future__ import annotations
 
+import ipaddress
 import os
 import time
 from typing import Annotated, Any
@@ -31,7 +32,7 @@ import board as B
 
 UNIT = "board"
 STARTED = time.time()
-BOARD_PATH = os.environ.get("SYM_BOARD", "/models/control.board")
+BOARD_PATH = os.environ.get("SYM_BOARD", "/mnt/models/control.board")
 
 app = FastAPI(
     title="SyMoNeuRaL control board",
@@ -47,6 +48,28 @@ def _expected_token() -> str | None:
     return v.strip() or None if v else None
 
 
+def _open_on_loopback() -> bool:
+    """A key is for traffic that leaves this machine. Loopback traffic does not.
+
+    Garrett, 2026-09-19: "i do not need keys for hardware to hardware endpoints. If endpoint to
+    endpoint is not routing through the internet we do not need those."
+
+    The reason is worth writing down: a token on a 127.0.0.1 bind defends only against a caller
+    who already has code execution on this host — and such a caller can read the token itself.
+    It costs a provisioning step and buys nothing.
+
+    So the BIND ADDRESS decides, not a convention. Off-loopback the token is required, and an
+    unset one closes the unit: a unit that becomes reachable through a config change must not
+    become public through that same change.
+    """
+    host = (os.environ.get("SYM_BOARD_HOST") or "127.0.0.1").strip()
+    if host.lower() in ("localhost", ""):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False          # a name we cannot prove is loopback is treated as reachable
+
 def require_token(authorization: Annotated[str | None, Header()] = None) -> None:
     """Same posture as the gateway: unconfigured fails closed, never open.
 
@@ -54,6 +77,8 @@ def require_token(authorization: Annotated[str | None, Header()] = None) -> None
     surface anyone can read. /health is the only route that answers unconfigured, because a
     readiness probe that needs a credential cannot report that the credential is missing.
     """
+    if _open_on_loopback():
+        return
     expected = _expected_token()
     if expected is None:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 """The board over HTTP. The tests that matter are the ones about what it refuses to say."""
-import os, pytest
+import contextlib, os, pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
@@ -11,22 +11,50 @@ C = TestClient(service.app)
 AUTH = {"authorization": "Bearer test-token-not-a-credential"}
 
 
+@contextlib.contextmanager
+def _bound(host):
+    """Bind the unit to `host` for the block. The guard reads SYM_BOARD_HOST per request, so
+    the bind address is what decides whether a token is demanded at all."""
+    saved = os.environ.get("SYM_BOARD_HOST")
+    os.environ["SYM_BOARD_HOST"] = host
+    try:
+        yield
+    finally:
+        if saved is None:
+            os.environ.pop("SYM_BOARD_HOST", None)
+        else:
+            os.environ["SYM_BOARD_HOST"] = saved
+
+
 def test_health_is_public_and_answers_unconfigured():
     r = C.get("/api/board/health")
     assert r.status_code == 200 and r.json()["status"] == "ok"
 
 
 def test_every_other_route_refuses_without_a_credential():
-    for p in ("/api/board/sections", "/api/board/settings", "/api/board/live",
-              "/api/board/diff", "/api/board/check", "/api/board/client"):
-        assert C.get(p).status_code in (401, 403), p
+    with _bound("0.0.0.0"):          # off-loopback: the token is what stands between them
+        for p in ("/api/board/sections", "/api/board/settings", "/api/board/live",
+                  "/api/board/diff", "/api/board/check", "/api/board/client"):
+            assert C.get(p).status_code in (401, 403), p
 
 
 def test_unconfigured_fails_closed_rather_than_open():
     saved = os.environ.pop("SYM_BOARD_TOKEN")
     try:
-        r = C.get("/api/board/sections", headers=AUTH)
-        assert r.status_code == 503, "a board with no token must refuse, never answer freely"
+        with _bound("0.0.0.0"):      # reachable off this host, and no token provisioned
+            r = C.get("/api/board/sections", headers=AUTH)
+            assert r.status_code == 503, "a board with no token must refuse, never answer freely"
+    finally:
+        os.environ["SYM_BOARD_TOKEN"] = saved
+
+
+def test_loopback_needs_no_token():
+    """On a loopback bind every route answers with no token at all, by design: a token there
+    defends only against a caller who already has this host, and so can already read the token."""
+    saved = os.environ.pop("SYM_BOARD_TOKEN")
+    try:
+        with _bound("127.0.0.1"):
+            assert C.get("/api/board/sections").status_code == 200
     finally:
         os.environ["SYM_BOARD_TOKEN"] = saved
 
