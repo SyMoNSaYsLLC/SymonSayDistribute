@@ -111,6 +111,14 @@ def _fabric_get(path: str, timeout: float = 20.0) -> Any:
 # They are still enumerable: GET /api/agents/connectors lists every one with its component,
 # endpoint and token variable, and whether the far end is answering.
 NOT_EXPOSED = {
+    "payload_queue":   "granted as a tool; enumerated by GET /api/agents/connectors",
+    "payload_form":    "granted as a tool; enumerated by GET /api/agents/connectors",
+    "estate_search":   "granted as a tool; enumerated by GET /api/agents/connectors",
+    "estate_context":  "granted as a tool; enumerated by GET /api/agents/connectors",
+    "lora_plan":       "granted as a tool; enumerated by GET /api/agents/connectors",
+    "engine_serves":   "granted as a tool; enumerated by GET /api/agents/connectors",
+    "engine_summary":  "granted as a tool; enumerated by GET /api/agents/connectors",
+    "device_fit":      "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_fetch":      "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_browse":     "granted as a tool; enumerated by GET /api/agents/connectors",
     "estate_survey":  "granted as a tool; enumerated by GET /api/agents/connectors",
@@ -206,6 +214,66 @@ def web_browse(a: dict) -> Any:
     return _call("symonweb", "/api/symonweb/browse", "POST",
                  {"url": a["url"], "headless": True}, timeout=120.0)
 
+def payload_queue(a: dict) -> Any:
+    """What admission is holding: depth, tokens pending, refusals since start."""
+    return _call("symonpayload", "/api/symonpayload/queue/status")
+
+
+def payload_form(a: dict) -> Any:
+    """Form a batch from what is queued, and report which bound ended formation."""
+    for k in ("max_tokens", "max_requests", "window_ms"):
+        if k not in a:
+            raise ToolError(f"payload_form needs {k}; this unit does not default its policy")
+    return _call("symonpayload", "/api/symonpayload/batches/form", "POST",
+                 {"max_tokens": int(a["max_tokens"]), "max_requests": int(a["max_requests"]),
+                  "window_ms": int(a["window_ms"])})
+
+
+def estate_search(a: dict) -> Any:
+    """Search the indexed corpus and get passages back with citations."""
+    if not a.get("query"):
+        raise ToolError("estate_search needs a query")
+    return _call("symonrag", "/api/symonrag/search", "POST",
+                 {"query": a["query"], "k": int(a.get("k", 5))}, timeout=60.0)
+
+
+def estate_context(a: dict) -> Any:
+    """The same passages formatted for a prompt, with the citations attached."""
+    if not a.get("query"):
+        raise ToolError("estate_context needs a query")
+    return _call("symonrag", "/api/symonrag/context", "POST",
+                 {"query": a["query"], "k": int(a.get("k", 5))}, timeout=60.0)
+
+
+def lora_plan(a: dict) -> Any:
+    """Adapter size and trainable memory for a checkpoint, from its own config."""
+    if not a.get("model_dir"):
+        raise ToolError("lora_plan needs a model_dir")
+    return _call("symonlora", "/api/symonlora/plan", "POST",
+                 {"model_dir": a["model_dir"], "rank": int(a.get("rank", 16))}, timeout=60.0)
+
+
+def engine_serves(a: dict) -> Any:
+    """Can the serving build run this checkpoint, and why."""
+    if not a.get("model_dir"):
+        raise ToolError("engine_serves needs a model_dir")
+    return _call("symonengine", f"/api/symonengine/serves?model_dir={a['model_dir']}",
+                 timeout=180.0)
+
+
+def engine_summary(a: dict) -> Any:
+    """What the serving build supports, as counts and feature flags."""
+    return _call("symonengine", "/api/symonengine/summary", timeout=180.0)
+
+
+def device_fit(a: dict) -> Any:
+    """Can a build run on this card: the compiled arch list against the card's capability."""
+    venv = a.get("venv")
+    if not venv:
+        raise ToolError("device_fit needs a venv")
+    return _call("symonprobe", f"/api/symonprobe/fit?venv={venv}", timeout=180.0)
+
+
 
 CONNECTORS: list[Tool] = [
     Tool("board_settings", "Every configured setting in the estate, or one section. "
@@ -262,6 +330,44 @@ CONNECTORS: list[Tool] = [
          "itself in the browser. Costs a browser process, so try web_fetch first.",
          {"type": "object", "properties": {"url": {"type": "string"}},
           "required": ["url"]}, web_browse),
+    Tool("payload_queue", "What the admission layer is holding right now: how many requests "
+         "are queued, how many tokens they represent, and how many have been refused.",
+         {"type": "object", "properties": {}}, payload_queue),
+    Tool("payload_form", "Form a batch from what is queued and report which bound ended it — "
+         "tokens, count, window, or drained. `drained` means the unit is under-loaded rather "
+         "than saturated, which calls for the opposite response.",
+         {"type": "object",
+          "properties": {"max_tokens": {"type": "integer"},
+                         "max_requests": {"type": "integer"},
+                         "window_ms": {"type": "integer"}},
+          "required": ["max_tokens", "max_requests", "window_ms"]}, payload_form),
+    Tool("estate_search", "Search the indexed corpus for passages relevant to a question. Each "
+         "result carries a citation naming the file and line range, so an answer built from it "
+         "can be checked. Use this before answering questions about this estate.",
+         {"type": "object",
+          "properties": {"query": {"type": "string"}, "k": {"type": "integer"}},
+          "required": ["query"]}, estate_search),
+    Tool("estate_context", "The same retrieval as estate_search but formatted as a block ready "
+         "to quote, with numbered citations.",
+         {"type": "object",
+          "properties": {"query": {"type": "string"}, "k": {"type": "integer"}},
+          "required": ["query"]}, estate_context),
+    Tool("lora_plan", "How large a LoRA adapter would be for a checkpoint and what the "
+         "trainable side costs, derived from the checkpoint's own config rather than estimated.",
+         {"type": "object",
+          "properties": {"model_dir": {"type": "string"}, "rank": {"type": "integer"}},
+          "required": ["model_dir"]}, lora_plan),
+    Tool("engine_serves", "Whether the serving build can run a given checkpoint, checking its "
+         "architecture against the registry and its quantization against the supported methods.",
+         {"type": "object", "properties": {"model_dir": {"type": "string"}},
+          "required": ["model_dir"]}, engine_serves),
+    Tool("engine_summary", "What the serving build supports: how many architectures and "
+         "quantization methods, and which features are present.",
+         {"type": "object", "properties": {}}, engine_summary),
+    Tool("device_fit", "Whether a build can run on this card, decided by the compiled "
+         "architecture list rather than by the name of the build.",
+         {"type": "object", "properties": {"venv": {"type": "string"}},
+          "required": ["venv"]}, device_fit),
 ]
 
 
@@ -280,6 +386,11 @@ def connectors() -> list[dict]:
         "estate_survey": "symonscope", "estate_layers": "symonscope",
         "estate_live": "symonscope",
         "web_fetch": "symonweb", "web_browse": "symonweb",
+        "payload_queue": "symonpayload", "payload_form": "symonpayload",
+        "estate_search": "symonrag", "estate_context": "symonrag",
+        "lora_plan": "symonlora",
+        "engine_serves": "symonengine", "engine_summary": "symonengine",
+        "device_fit": "symonprobe",
     }
     try:
         table = {c["component"]: c for c in _fabric_get("/api/fabric/components")["components"]}

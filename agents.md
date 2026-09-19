@@ -111,6 +111,11 @@ rather than an edit here: this file no longer knows or cares what port anything 
 The cost is honest and stated: nothing is reachable while the fabric is down, and `reachable()`
 says exactly that rather than guessing per component from a table this process no longer keeps.
 
+Nineteen tools reaching ten components: board, ravencalc and the gateway, plus symonscope
+(what the estate is), symonweb (fetch and browse), symonrag (retrieval with citations),
+symonpayload (admission), symonlora (adapter planning), symonengine (what the build supports)
+and symonprobe (what the card supports). Every one by component name, through the fabric.
+
 Verified live: an agent process whose entire environment held only `SYM_FABRIC_TOKEN` reached
 symonscope through the fabric and got 13 units back, then fetched a page and rendered another
 in a real browser through symonweb — three components, one credential.
