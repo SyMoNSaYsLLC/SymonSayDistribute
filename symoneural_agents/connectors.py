@@ -111,6 +111,8 @@ def _fabric_get(path: str, timeout: float = 20.0) -> Any:
 # They are still enumerable: GET /api/agents/connectors lists every one with its component,
 # endpoint and token variable, and whether the far end is answering.
 NOT_EXPOSED = {
+    "web_fetch":      "granted as a tool; enumerated by GET /api/agents/connectors",
+    "web_browse":     "granted as a tool; enumerated by GET /api/agents/connectors",
     "estate_survey":  "granted as a tool; enumerated by GET /api/agents/connectors",
     "estate_layers":  "granted as a tool; enumerated by GET /api/agents/connectors",
     "estate_live":    "granted as a tool; enumerated by GET /api/agents/connectors",
@@ -189,6 +191,22 @@ def estate_live(a: dict) -> Any:
     return _call("symonscope", f"/api/symonscope/live?tree={tree}", timeout=60.0)
 
 
+def web_fetch(a: dict) -> Any:
+    """Read a public web page: one request, no javascript."""
+    if not a.get("url"):
+        raise ToolError("web_fetch needs a url")
+    return _call("symonweb", "/api/symonweb/fetch", "POST",
+                 {"url": a["url"], "timeout": float(a.get("timeout", 20.0))}, timeout=60.0)
+
+
+def web_browse(a: dict) -> Any:
+    """Read a public web page as a reader sees it, with scripts run. Costs a browser."""
+    if not a.get("url"):
+        raise ToolError("web_browse needs a url")
+    return _call("symonweb", "/api/symonweb/browse", "POST",
+                 {"url": a["url"], "headless": True}, timeout=120.0)
+
+
 CONNECTORS: list[Tool] = [
     Tool("board_settings", "Every configured setting in the estate, or one section. "
          "Optional argument: section.",
@@ -233,6 +251,17 @@ CONNECTORS: list[Tool] = [
          {"type": "object", "properties": {"tree": {"type": "string",
           "description": "one of SymonSayDistribute, SymonSaySource, SymonSayOpen, SymonSayOSS; "
                          "defaults to SymonSayDistribute"}}}, estate_live),
+    Tool("web_fetch", "Read a public web page and get back its title, text and links. One HTTP "
+         "request, no javascript — fast, and what most pages need. Any address that is not "
+         "public is refused, so this cannot be pointed at the estate's own services.",
+         {"type": "object",
+          "properties": {"url": {"type": "string"}, "timeout": {"type": "number"}},
+          "required": ["url"]}, web_fetch),
+    Tool("web_browse", "Read a public web page the way a reader sees it, with javascript run. "
+         "Use when a page comes back empty or wrong under web_fetch, which means it builds "
+         "itself in the browser. Costs a browser process, so try web_fetch first.",
+         {"type": "object", "properties": {"url": {"type": "string"}},
+          "required": ["url"]}, web_browse),
 ]
 
 
@@ -250,6 +279,7 @@ def connectors() -> list[dict]:
         "list_models": "gateway",
         "estate_survey": "symonscope", "estate_layers": "symonscope",
         "estate_live": "symonscope",
+        "web_fetch": "symonweb", "web_browse": "symonweb",
     }
     try:
         table = {c["component"]: c for c in _fabric_get("/api/fabric/components")["components"]}

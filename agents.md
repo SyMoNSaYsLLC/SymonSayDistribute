@@ -111,8 +111,9 @@ rather than an edit here: this file no longer knows or cares what port anything 
 The cost is honest and stated: nothing is reachable while the fabric is down, and `reachable()`
 says exactly that rather than guessing per component from a table this process no longer keeps.
 
-Verified live: an agent process holding only `SYM_FABRIC_TOKEN` reached symonscope through the
-fabric and got 13 units back.
+Verified live: an agent process whose entire environment held only `SYM_FABRIC_TOKEN` reached
+symonscope through the fabric and got 13 units back, then fetched a page and rendered another
+in a real browser through symonweb — three components, one credential.
 
 It makes the estate's wiring enumerable. `GET /api/agents/connectors` lists every wire with its
 component, endpoint and token variable, and whether the far end is answering — because a
