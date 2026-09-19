@@ -79,3 +79,22 @@ is exactly what `helper-script` exists to avoid, and the board says so rather th
 ## Releases
 
 Tagged `board/v<version>`.
+
+## Over HTTP
+
+Eight routes on `127.0.0.1:8811`, the port `/models/control.board` assigns to `board`. Health
+is public; everything else needs `SYM_BOARD_TOKEN`, and the service answers 503 rather than
+opening up when that variable is unset — an unconfigured board is closed, not permissive.
+
+    GET  /api/board/health                    public; answers while the board is unconfigured
+    GET  /api/board/sections                  the sections, and what each one governs
+    GET  /api/board/settings                  every setting with the tree that owns it
+    GET  /api/board/live                      the values read back from running things
+    GET  /api/board/diff                      where live disagrees with the file on disk
+    GET  /api/board/check                     the refusals below, run as one call
+    GET  /api/board/client                    which surface currently holds the credential
+    POST /api/board/client/{surface}          move the credential between web and the client
+
+`settings` takes an optional `?section=` and reports the `#@tree:` attribution beside each
+value, so a setting is never separated from the tree that is allowed to change it. No route
+returns a credential: where a key exists, the board reports its fingerprint and nothing else.
