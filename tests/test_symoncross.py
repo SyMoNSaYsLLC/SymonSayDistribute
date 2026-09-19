@@ -6,7 +6,7 @@
 
 Most of these assert a NEGATIVE, because the failure this component exists to prevent is a
 cheerful one: a report saying the estate can build for a target when nothing on the host can
-emit an artifact for it. So the windows-mingw test asserts it is NOT buildable and that the
+emit an artifact for it. So the windows test asserts it is NOT buildable and that the
 missing compiler is named, and it would fail the day somebody made `buildable` optimistic.
 
 None of these passes whether or not the code is right. The ones that read the live host read
@@ -126,7 +126,7 @@ def test_windows_mingw_is_not_buildable_and_names_the_missing_compiler(report):
     The missing compiler must be NAMED, not merely counted. A `buildable: false` that does not
     say a toolchain is absent sends somebody looking for a build directory.
     """
-    rec = report["targets"]["windows-mingw"]
+    rec = report["targets"]["windows"]
     assert rec["buildable"] is False
     assert rec["blocked_by"], "a false verdict with no reasons is the bug this component is about"
     named = [b for b in rec["blocked_by"] if "mingw" in b and "compiler" in b]
@@ -439,7 +439,7 @@ def test_hosts_reports_the_host_with_its_evidence():
 def test_builders_reports_every_bitbake_copy_and_whether_any_is_on_path():
     b = X.builders()
     bb = b["tools"]["bitbake"]
-    assert bb["on_path"] is False, "it reached PATH; the windows-mingw verdict must be re-read"
+    assert bb["on_path"] is False, "it reached PATH; the windows verdict must be re-read"
     assert bb["copies_found"] >= 1, "the searched copies vanished"
     assert len(bb["copies"]) == len(X.BITBAKE_PATHS)
     assert bb["version"] is None and bb["not_run"]

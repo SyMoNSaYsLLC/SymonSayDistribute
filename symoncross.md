@@ -40,7 +40,7 @@ its reasons. A bare boolean is never returned.
 
 | Target | buildable | blocked_by |
 |---|---|---|
-| `windows-mingw` | **false** | mingw cross compiler on PATH · meta-mingw layer acquired · build-and-integration tool on PATH · an OE build directory exists |
+| `windows` | **false** | mingw cross compiler on PATH · meta-mingw layer acquired · build-and-integration tool on PATH · an OE build directory exists |
 | `darwin` | **false** | compile probe for `x86_64-apple-macosx13.0` |
 | `jvm` | true | — |
 | `linux-native` | true | — |
@@ -342,7 +342,12 @@ component's call sites are each somebody's decision, not a consequence of having
 
 ## One wording question, recorded not decided
 
-`windows-mingw` is this component's own API key. Rules section 3.11 pre-clears a target triple
+`windows` is this component's own API key, renamed from `windows-mingw` on Garrett's ruling of
+2026-09-19: a target key names a PLATFORM FAMILY, and the toolchain that would serve it is
+metadata beside it (`TARGET_TOOLCHAIN`) rather than baked into the public identifier. A key
+that names one toolchain has to be renamed the day a second one can serve the same platform.
+`windows-mingw` is accepted on input as a deprecated alias and never returned.
+Rules section 3.11 pre-clears a target triple
 and a layer name as technical identifiers that stay byte-exact, and `x86_64-w64-mingw32` and
 `meta-mingw` are both covered by that. The route key is neither: it is a name this component
 chose. It is used here because it was specified, it names the platform family exactly as every

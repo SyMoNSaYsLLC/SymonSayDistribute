@@ -116,7 +116,27 @@ BUILDERS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("javac", ("-version",)),
 )
 
-TARGET_NAMES: tuple[str, ...] = ("windows-mingw", "darwin", "jvm", "linux-native")
+TARGET_NAMES: tuple[str, ...] = ("windows", "darwin", "jvm", "linux-native")
+
+# A target key names a PLATFORM FAMILY; the toolchain that would serve it is metadata beside
+# it, not baked into the public identifier. Garrett, 2026-09-19: "the canonical SyMoNeuRaL
+# target key should describe the platform rather than bake a particular toolchain
+# implementation into the public identifier."
+#
+# The distinction matters because a platform can be served by more than one toolchain, and a
+# key that says otherwise has to be renamed the day a second one appears. Upstream identifiers
+# — meta-mingw, x86_64-w64-mingw32 — keep their exact spelling wherever they are technically
+# required; only OUR key changed.
+TARGET_TOOLCHAIN: dict[str, str] = {
+    "windows": "mingw",
+    "darwin": "swift-sdk",
+    "jvm": "javac",
+    "linux-native": "native",
+}
+
+# Accepted on input, never returned. A caller using the old key still works; the answer always
+# comes back under the canonical one, so two names cannot both become canonical by habit.
+DEPRECATED_TARGET_ALIASES: dict[str, str] = {"windows-mingw": "windows"}
 
 # The triple is a technical identifier and is typed exactly as the toolchain expects it.
 DARWIN_TRIPLE = "x86_64-apple-macosx13.0"
@@ -766,7 +786,7 @@ def _record(target: str, preconditions: list[dict[str, Any]], estate_source: dic
     }
 
 
-def _target_windows_mingw(census: dict[str, Any], lay: dict[str, Any],
+def _target_windows(census: dict[str, Any], lay: dict[str, Any],
                           build: dict[str, Any]) -> dict[str, Any]:
     found = [c for c in (_which(n) for n in MINGW_COMPILERS) if c["found"]]
     pkg = _run(["dpkg-query", "-W", "-f=${Package} ${Version}\n", "mingw-w64*"], timeout=20.0)
@@ -808,7 +828,7 @@ def _target_windows_mingw(census: dict[str, Any], lay: dict[str, Any],
     ]
     native = sum(census["by_extension"].get(e, 0) for e in (".c", ".cpp", ".cc", ".rs", ".go"))
     return _record(
-        "windows-mingw", pre,
+        "windows", pre,
         {"native_source_files": native, "by_extension": census["by_extension"],
          "evidence": census["evidence"]},
         ("Nothing on this host can emit a PE binary today by any route. There is also nothing "
@@ -907,6 +927,8 @@ def targets(name: str | None = None) -> dict[str, Any]:
     `blocked_by` derived from them; a bare boolean is never returned, because a verdict without
     its reasons cannot be acted on or checked.
     """
+    if name is not None:
+        name = DEPRECATED_TARGET_ALIASES.get(name, name)
     if name is not None and name not in TARGET_NAMES:
         raise KeyError(f"no such target: {name!r}; known targets are {list(TARGET_NAMES)}")
 
@@ -914,8 +936,8 @@ def targets(name: str | None = None) -> dict[str, Any]:
     wanted = (name,) if name else TARGET_NAMES
 
     records: dict[str, Any] = {}
-    if "windows-mingw" in wanted:
-        records["windows-mingw"] = _target_windows_mingw(
+    if "windows" in wanted:
+        records["windows"] = _target_windows(
             census, layers(names=["meta-mingw"]), builders())
     if "darwin" in wanted:
         records["darwin"] = _target_darwin(census)
