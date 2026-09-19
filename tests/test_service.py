@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 """The agents surface. The tests that matter are about what it refuses before a run starts."""
-import os, time, pytest
+import contextlib, os, time, pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
@@ -11,20 +11,48 @@ C = TestClient(service.app)
 AUTH = {"authorization": "Bearer test-token-not-a-credential"}
 
 
+@contextlib.contextmanager
+def _bound(host):
+    """Bind the unit to `host` for the block. The guard reads SYM_AGENTS_HOST per request, so
+    the bind address is what decides whether a token is demanded at all."""
+    saved = os.environ.get("SYM_AGENTS_HOST")
+    os.environ["SYM_AGENTS_HOST"] = host
+    try:
+        yield
+    finally:
+        if saved is None:
+            os.environ.pop("SYM_AGENTS_HOST", None)
+        else:
+            os.environ["SYM_AGENTS_HOST"] = saved
+
+
 def test_health_is_public():
     r = C.get("/api/agents/health")
     assert r.status_code == 200 and r.json()["tools"] > 0
 
 
 def test_everything_else_needs_a_credential():
-    for p in ("/api/agents/tools", "/api/agents/connectors", "/api/agents/runs"):
-        assert C.get(p).status_code in (401, 403), p
+    with _bound("0.0.0.0"):          # off-loopback: the token is what stands between them
+        for p in ("/api/agents/tools", "/api/agents/connectors", "/api/agents/runs"):
+            assert C.get(p).status_code in (401, 403), p
 
 
 def test_unconfigured_fails_closed():
     saved = os.environ.pop("SYM_AGENTS_TOKEN")
     try:
-        assert C.get("/api/agents/tools", headers=AUTH).status_code == 503
+        with _bound("0.0.0.0"):      # reachable off this host, and no token provisioned
+            assert C.get("/api/agents/tools", headers=AUTH).status_code == 503
+    finally:
+        os.environ["SYM_AGENTS_TOKEN"] = saved
+
+
+def test_loopback_needs_no_token():
+    """On a loopback bind every route answers with no token at all, by design: a token there
+    defends only against a caller who already has this host, and so can already read the token."""
+    saved = os.environ.pop("SYM_AGENTS_TOKEN")
+    try:
+        with _bound("127.0.0.1"):
+            assert C.get("/api/agents/tools").status_code == 200
     finally:
         os.environ["SYM_AGENTS_TOKEN"] = saved
 

@@ -63,7 +63,7 @@ class PluginError(Exception):
 
 
 def plugin_root() -> Path:
-    return Path(os.environ.get("SYM_PLUGINS_DIR", "/models/plugins"))
+    return Path(os.environ.get("SYM_PLUGINS_DIR", "/mnt/models/plugins"))
 
 
 def _read(manifest: Path) -> dict[str, Any]:
