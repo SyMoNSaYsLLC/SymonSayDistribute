@@ -7,7 +7,6 @@
 #   model-store where  [--store DIR]
 #   model-store place  <source-dir> <name> [--store DIR] [--dry-run]
 #   model-store verify <name> [--store DIR]
-#   model-store pin    <name> [--store DIR] [--upstream URL] [--out FILE]
 #
 # WHY THIS EXISTS
 # ---------------
@@ -37,7 +36,13 @@ case "$CMD" in
   where)  exec "$HERE/store/where.sh"  "$@" ;;
   place)  exec python3 "$HERE/store/place.py"  "$@" ;;
   verify) exec python3 "$HERE/store/verify.py" "$@" ;;
-  pin)    exec python3 "$HERE/store/pin.py"    "$@" ;;
+  # `pin` was advertised here and never implemented. It is not being written, because
+  # recording what an upstream is — commit, declared licence, checksum of the licence
+  # file — is what the source-pin skill already does, and two ways to pin one thing is
+  # how two pins for one component start disagreeing.
+  pin)    echo "pin lives in the source-pin skill: it records the commit, the declared" >&2
+          echo "licence and the checksum of the licence file. This store does not keep"  >&2
+          echo "a second pin record." >&2; exit 2 ;;
   ""|-h|--help)
     sed -n '5,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
     exit 0 ;;

@@ -8,6 +8,15 @@ Puts a checkpoint into the estate's weight store, under our name, provably.
 
     model-store where              the store's path, device, UUID, free space
     model-store place <src> <name> copy it in, verify every digest, record provenance
+    model-store verify <name>      re-hash every tracked file against the manifest
+
+`verify` is the same function the HTTP surface calls, not a second implementation. Two answers
+to "is this checkpoint still what it was" would eventually disagree, and the day they disagree
+is the day nobody knows which to believe.
+
+Pinning is **not** here. Recording what an upstream is — its commit, its declared licence, the
+checksum of that licence file — is what the `source-pin` skill does, and `model-store pin`
+refuses with a pointer rather than keeping a second pin record.
 
 ## Why it exists
 

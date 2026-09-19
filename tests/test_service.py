@@ -86,3 +86,40 @@ def test_the_real_store_verifies():
     d = C.post("/api/store/models/symon/verify", headers=AUTH).json()
     assert d["ok"] is True, d
     assert d["checked"] == 12
+
+
+# --- every advertised subcommand must have something behind it --------------------------
+def test_every_cli_subcommand_resolves_to_something_that_exists():
+    """`verify` was advertised in the usage, dispatched to store/verify.py, and that file was
+    never written — so the command the placement itself recommends next died with a python
+    file-not-found after a successful 12 GiB copy. A front door onto nothing is worse than no
+    door, because the tool told the operator to use it."""
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    cli = (root / "model-store").read_text()
+
+    # the case arms of the dispatcher, e.g.  place)  exec python3 "$HERE/store/place.py" ...
+    arms = re.findall(r'^\s{2}([a-z]+)\)\s+exec\s+\S+\s+"\$HERE/([^"]+)"', cli, re.M)
+    assert arms, "no dispatch arms found — this test is looking in the wrong place"
+    for name, rel in arms:
+        target = root / rel
+        assert target.exists(), f"`{name}` dispatches to {rel}, which does not exist"
+
+    # and anything named in the usage block is either dispatched or explicitly refused
+    usage = re.findall(r"^#\s+model-store\s+([a-z]+)", cli, re.M)
+    handled = set(re.findall(r"^\s{2}([a-z]+)\)", cli, re.M))
+    for name in usage:
+        assert name in handled, f"usage advertises `{name}` and nothing handles it"
+
+
+def test_pin_refuses_rather_than_pretending_and_says_where_it_lives():
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    r = subprocess.run([str(root / "model-store"), "pin", "anything"],
+                       capture_output=True, text=True, timeout=30)
+    assert r.returncode == 2, "pin should refuse, not succeed and not crash"
+    assert "source-pin" in r.stderr, "the refusal should say where pinning actually lives"
