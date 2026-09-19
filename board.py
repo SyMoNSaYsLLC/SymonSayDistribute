@@ -519,7 +519,31 @@ def cmd_env(a) -> int:
 
 
 def cmd_3p(a) -> int:
-    """Switch the third-party client path on or off, or report it."""
+    """Superseded by `client`. Kept so the old command does not silently vanish.
+
+    This read a `[client_3p]` section that no longer exists. `board.values("client_3p")` came
+    back empty, `enabled` defaulted to "no", and it printed "the board has it switched off"
+    about a path that was switched ON and fully wired — while `client` reported the same path
+    as ok on all five checks, from the `[client]` section that actually governs.
+
+    A command that reports the opposite of the truth is worse than one that was deleted, and
+    this is the readiness check somebody runs immediately before testing. It now defers.
+    """
+    if getattr(a, "state", None) in ("on", "off"):
+        print("`3p on|off` is superseded. The surface is one setting now, and it has four\n"
+              "values rather than two:\n"
+              "    symon-board client 3p|webui|both|off\n"
+              "Nothing was changed.")
+        return 2
+    print("`3p` is superseded by `client`, which reads the [client] section that governs.\n")
+    # cmd_client selects a surface when given one; this must only REPORT, so the attribute it
+    # switches on is set to nothing rather than left absent, which raised AttributeError.
+    a.surface = None
+    return cmd_client(a)
+
+
+def _cmd_3p_legacy(a) -> int:
+    """The original, kept for reference. Not reachable from the CLI."""
     b = Board.load(a.board)
     if a.state in ("on", "off"):
         want = "yes" if a.state == "on" else "no"
