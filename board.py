@@ -36,6 +36,32 @@ import argparse, json, os, re, subprocess, sys
 from pathlib import Path
 
 DEFAULT_BOARD = os.environ.get("SYM_BOARD") or "/models/control.board"
+
+# Every public callable here is either routed by service.py or listed below with the reason it
+# is not. The endpoints-current gate enforces that: silence is the failure, because a
+# capability nobody routed and nobody decided against is indistinguishable from one forgotten.
+NOT_EXPOSED = {
+    "sh": "runs a command and returns its output; exposing it would be a shell over HTTP",
+    "card": "a probe, reported through /live rather than on its own",
+    "listener": "a probe, reported through /live",
+    "flag": "parses one flag out of a command line; a helper, not a capability",
+    "fingerprint": "hashes a credential file. Routed indirectly through /client, which reports "
+                   "the fingerprint. A route taking an arbitrary path would let a caller "
+                   "fingerprint any file on the host, which is a different thing entirely",
+    "live": "routed as GET /api/board/live",
+    "client_surfaces": "routed as GET /api/board/client",
+    "client_3p": "superseded by client_surfaces, which reports both surfaces rather than one",
+    "cmd_show": "a command-line entry point, not a capability",
+    "cmd_diff": "a command-line entry point; the capability is routed as GET /api/board/diff",
+    "cmd_env": "a command-line entry point. Deliberately NOT routed: it emits shell exports, "
+               "and a control surface that hands out an environment over the network is a "
+               "different trust decision from one that reports settings",
+    "cmd_3p": "a command-line entry point; superseded by cmd_client",
+    "cmd_client": "a command-line entry point; routed as POST /api/board/client/{surface}",
+    "cmd_sections": "a command-line entry point; routed as GET /api/board/sections",
+    "cmd_check": "a command-line entry point; routed as GET /api/board/check",
+    "main": "the command-line dispatcher",
+}
 LIVE = "live"
 
 # key -> the environment variable a unit reads. A key with no mapping is board-only.
