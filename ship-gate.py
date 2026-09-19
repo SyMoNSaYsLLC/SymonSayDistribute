@@ -397,6 +397,49 @@ def check_repo_history(rep, repo: Path):
     if any(l.startswith("2026-08") for l in out.splitlines()): rep.finding(unit, "FAIL", "august", "commits dated August 2026 in history")  # gate-allow: no-august — this IS the August detector
     rep.finding(unit, "INFO", "repo", f"{n} blobs scanned across all refs")
 
+# ----------------------------------------------------------------------------- recipe census
+def census_recipes(rep: Report, unit: str, files: list[Path]) -> int:
+    """A recipe unit's closure is what its recipes DECLARE they build.
+
+    The open trees hold build metadata, not binaries: no wheel, no node tree, no ELF. Every
+    census the gate had needs an artifact to read, so a recipe unit produced nothing and came
+    out "licence closure UNESTABLISHED" — which meant the trees whose entire purpose is
+    licence placement were the ones the licence gate could say nothing about.
+
+    A recipe states its licence and, when there is a file to point at, the checksum that makes
+    the claim checkable. Both are read here. A recipe declaring no licence is a FAIL, not a
+    review: it cannot be placed, audited, or defended, and unlike a missing binary census there
+    is nothing to derive it from.
+    """
+    seen = 0
+    for f in files:
+        try:
+            text = f.read_text(errors="replace")
+        except Exception:
+            continue
+        name = f.name.replace(".bb", "").replace(".bbappend", "")
+        lic = ""
+        m = re.search(r"^\s*LICENSE\s*\??=\s*[\"']([^\"']+)[\"']", text, re.M)
+        if m:
+            lic = m.group(1).strip()
+        if f.name.endswith(".bbappend"):
+            continue                    # inherits from the recipe it appends to
+        if not lic:
+            rep.finding(unit, "FAIL", "licence:UNDECLARED",
+                        f"{f.name} declares no LICENSE — it cannot be placed, audited or defended")
+            seen += 1
+            continue
+        klass, why = classify(lic, component=name)
+        has_chk = bool(re.search(r"^\s*LIC_FILES_CHKSUM\s*\??=", text, re.M))
+        rep.component(unit, name, "recipe", lic, klass, why,
+                      "declared by the recipe" + ("" if has_chk else "; NO LIC_FILES_CHKSUM, so the name is a claim"))
+        if not has_chk:
+            rep.finding(unit, "REVIEW", "licence:unchecksummed",
+                        f"{f.name} names {lic} with no LIC_FILES_CHKSUM — the checksum is what makes it checkable")
+        seen += 1
+    return seen
+
+
 # ----------------------------------------------------------------------------- script census
 # A unit made of shell and Python scripts has a real licence closure, and before this it had
 # none: no census applied to it, so every such unit came out "licence closure UNESTABLISHED"
@@ -644,6 +687,7 @@ def main():
             for unit_dir in sorted(p for p in a.stage.iterdir() if p.is_dir()):
                 unit = unit_dir.name
                 scripts: list[Path] = []
+                recipes: list[Path] = []
                 for f in sorted(unit_dir.rglob("*")):
                     if not f.is_file(): continue
                     rel = f.relative_to(a.stage); arch = rel.parts[1] if len(rel.parts) > 2 else "-"
@@ -680,6 +724,7 @@ def main():
                                 # the only form that can actually be released was the form that
                                 # could not pass.
                                 inner_scripts: list[Path] = []
+                                inner_recipes: list[Path] = []
                                 for m in sorted(d.rglob("*")):
                                     if not m.is_file() or m.is_symlink():
                                         continue
@@ -694,8 +739,12 @@ def main():
                                             census_elf(rep, unit, m, meta)
                                         elif m.suffix in (".py", ".sh", ".bash") or magic[:2] == b"#!":
                                             inner_scripts.append(m)
+                                        elif m.suffix in (".bb", ".bbappend", ".bbclass", ".inc"):
+                                            inner_recipes.append(m)
                                 if any(x.name == "package.json" for x in d.rglob("package.json")):
                                     census_node_tree(rep, unit, d)
+                                if inner_recipes:
+                                    census_recipes(rep, unit, inner_recipes)
                                 if inner_scripts and not rep.unit(unit)["components"]:
                                     census_scripts(rep, unit, d, inner_scripts)
                     elif f.stat().st_size > 0 and f.open("rb").read(4) == b"\x7fELF":
@@ -703,10 +752,14 @@ def main():
                     else:
                         if f.suffix in (".py", ".sh", ".bash") or (f.stat().st_size > 2 and f.open("rb").read(2) == b"#!"):
                             scripts.append(f)
+                        elif f.suffix in (".bb", ".bbappend", ".bbclass", ".inc"):
+                            recipes.append(f)
                         scan_path_rules(rep, unit, str(rel), top=True)
                         if f.stat().st_size < BIG:
                             data = f.read_bytes(); scan_bytes(rep, unit, str(rel), data)
                             if len(data) < 4 << 20: scan_identifiers(unit, str(rel), data.decode("utf-8", errors="replace"))
+                if recipes:
+                    census_recipes(rep, unit, recipes)
                 if scripts and not rep.unit(unit)["components"]:
                     census_scripts(rep, unit, unit_dir, scripts)
                 if not rep.unit(unit)["components"] and unit not in ("source", "symoneural-learn-hostrun", "noncopyleft-image-policy"):
