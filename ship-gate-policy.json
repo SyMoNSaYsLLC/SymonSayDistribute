@@ -324,7 +324,7 @@
   "attribution_rule": "every shipped component in PERMISSIVE / WEAK_* must appear in THIRD-PARTY-NOTICES.md by name; absence FAILS the unit",
   "weights_rule": "no weights (.safetensors .gguf .pt .pth .ckpt .bin>100MB .npz .h5 .onnx>100MB) inside any artifact; named weights must be PERMISSIVE (Apache-2.0 / MIT). RAIL, Llama, Gemma, non-commercial weights FAIL even when only referenced by default config.",
   "trademark_rule": "third-party marks (openai, gpt, anthropic, claude, nvidia, geforce, meta, llama, google, gemma, mistral, huggingface, cloudflare) must not appear in artifact filenames, package names, image names or product-facing UI titles. Occurrences in UI body text, client-compatibility notes and dependency names are listed for REVIEW, not failed.",
-  "secrets_rule": "any match of the secrets regex set in the CONTENT of any staged file, inside any archive, or in any blob of the git history to be pushed FAILS; any file whose PATH matches secret_file_paths FAILS. Mentioning where a key file lives (its path) is permitted \u2014 that is how the code documents the secret's location without carrying it.",
+  "secrets_rule": "any match of the secrets regex set in the CONTENT of any staged file, inside any archive, or in any blob of the git history to be pushed FAILS; any file whose PATH matches secret_file_paths FAILS. Mentioning where a key file lives (its path) is permitted \u2014 that is how the code documents the secret's location without carrying it. A fingerprint may be allowlisted only by exact sha256 of the matched bytes, with what it is and why it is not a credential recorded beside it. A path or a pattern is never allowlisted: that would exempt every future string in the same place.",
   "vulnerability_rule": "known CVEs of severity HIGH or CRITICAL in the shipped closure FAIL (pip-audit, pnpm audit --prod, cargo audit). An unavailable scanner is recorded as REVIEW, never as a pass.",
   "august_rule": "any input dated 2026-08 (mtime, pin date, tag date, log line) FAILS \u2014 it predates the fresh start",
   "first_party_units": [
@@ -440,5 +440,23 @@
   ],
   "product_licence_note": "FSL-1.1-ALv2 until 2026-09-18, when the SymonSaysLLC Proprietary License 1.0 replaced it on SymonSayDistribute and SymonSaySource. Recorded, not consumed: no check reads this field.",
   "open_source_licence": "LicenseRef-SymonSaysLLC-OpenSource-1.0",
-  "invoked_rule": "A component reached across a process boundary is classed INVOKED_NOT_LINKED, never relabelled permissive. Linking is what triggers copyleft; invoking is not linking. A PROPRIETARY third-party program we merely execute is treated the same way: we redistribute none of its bytes, so its terms bind its own distribution, not ours. UNKNOWN is NOT neutralised by invocation \u2014 a licence we could not establish stays a failure however the component is reached."
+  "invoked_rule": "A component reached across a process boundary is classed INVOKED_NOT_LINKED, never relabelled permissive. Linking is what triggers copyleft; invoking is not linking. A PROPRIETARY third-party program we merely execute is treated the same way: we redistribute none of its bytes, so its terms bind its own distribution, not ours. UNKNOWN is NOT neutralised by invocation \u2014 a licence we could not establish stays a failure however the component is reached.",
+  "secret_fingerprint_allowlist": [
+    {
+      "fingerprint": "a53635409357",
+      "what": "synthetic credential-shaped fixture in gates/selftest.sh",
+      "why_it_passes": "Never a credential. It is the string the no-secret gate is tested against, so that gate can be shown to fail as well as pass. It was removed from the working tree on 2026-09-18 and is now assembled at run time, but it remains in the blob at selftest.sh@c70a206ce, which no non-rewriting operation can remove.",
+      "blob": "c70a206ce",
+      "path": "selftest.sh",
+      "recorded": "2026-09-18"
+    },
+    {
+      "fingerprint": "0a13c3c78f01",
+      "what": "the same fixture line matched a second time by the generic_assignment pattern",
+      "why_it_passes": "Same line, same blob, same reason.",
+      "blob": "c70a206ce",
+      "path": "selftest.sh",
+      "recorded": "2026-09-18"
+    }
+  ]
 }

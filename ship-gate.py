@@ -38,6 +38,10 @@ FIRST_PARTY = {u.lower() for u in POLICY["first_party_units"]}
 TRADEMARKS = re.findall(r"\((.*?)\)", POLICY["trademark_rule"])[0].split(", ")
 SECRET_RX = {k: re.compile(v.encode()) for k, v in POLICY["secrets_patterns"].items()}
 SECRET_PATH_RX = [re.compile(p) for p in POLICY.get("secret_file_paths", [])]
+# Allowlisted by the sha256 of the MATCHED BYTES, never by path or pattern. A path
+# allowlist exempts every future string in that file; a fingerprint exempts exactly one
+# string and nothing else, so a real credential added to the same line still fails.
+SECRET_OK = {e["fingerprint"]: e for e in POLICY.get("secret_fingerprint_allowlist", [])}
 WEIGHT_EXT = tuple(POLICY["weights_extensions"])
 BIG = POLICY["large_binary_review_bytes"]
 # The product licence is policy, not a literal. It was written out in five places and all
@@ -296,7 +300,11 @@ def scan_bytes(rep, unit, label, data: bytes):
     third_party = "/node_modules/" in label or "/site-packages/" in label or "/.pnpm/" in label
     for name, rx in SECRET_RX.items():
         for m in rx.finditer(data):
-            rep.finding(unit, "REVIEW" if third_party else "FAIL", "secret", f"{label}: pattern {name}, fingerprint {hashlib.sha256(m.group(0)).hexdigest()[:12]} (value withheld)")
+            fp = hashlib.sha256(m.group(0)).hexdigest()[:12]
+            if fp in SECRET_OK:
+                rep.finding(unit, "INFO", "secret", f"{label}: fingerprint {fp} allowlisted — {SECRET_OK[fp]['what']}")
+                continue
+            rep.finding(unit, "REVIEW" if third_party else "FAIL", "secret", f"{label}: pattern {name}, fingerprint {fp} (value withheld)")
 
 _TM_REVIEW: dict[str, set] = {}
 
