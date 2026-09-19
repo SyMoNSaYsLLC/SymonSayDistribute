@@ -568,9 +568,19 @@ def census_scripts(rep: Report, unit: str, root: Path, files: list[Path]):
         lic = _deb_licence(pkg)
         klass, why = classify(lic or None, invoked=True, component=pkg)
         rep.component(unit, pkg, "system", lic or "unstated", klass, why, f"invoked by {unit} scripts")
+    unit_norm = unit.lower().replace("-", "_")
     for mod in sorted(pymods):
         if mod in _STDLIB:
             continue
+        # A package importing its own modules is not a dependency. `symoneural_agents`
+        # importing `symoneural_agents.tools` resolves to no INSTALLED distribution — it is
+        # the unit being censused — and reporting that as an unverified closure makes the
+        # unit's own name look like a missing third party.
+        m = mod.lower().replace("-", "_")
+        if m == unit_norm or m.startswith(f"symoneural_{unit_norm}") or m == f"symoneural_{unit_norm}":
+            continue
+        if (root / mod).is_dir() or (root / f"{mod}.py").is_file():
+            continue          # it is in the unit's own tree
         dist, lic = "", ""
         try:
             import importlib.metadata as im
