@@ -13,11 +13,15 @@ from symonengine import capability as C
 
 TOKEN = uuid.uuid4().hex
 VENV = "/home/google/.venvs/vllm-0271-cu130"
-SYMON = "/models/symon"
+SYMON = "/mnt/models/symon"
 
 
 @pytest.fixture
 def client(monkeypatch):
+    # Off-loopback, so `headers=auth()` in this file actually exercises the guard.
+    # On a loopback bind the guard returns before comparing anything, which would
+    # make every authenticated test here pass with a wrong token or none at all.
+    monkeypatch.setenv("SYM_ENGINE_HOST", "0.0.0.0")
     monkeypatch.setenv("SYM_ENGINE_TOKEN", TOKEN)
     import service
     importlib.reload(service)
@@ -40,12 +44,28 @@ def test_a_checkpoint_with_no_config_cannot_be_answered_for(tmp_path):
 
 
 def test_health_is_public_and_the_rest_is_closed(monkeypatch):
+    # The bind address decides. Bind wide BEFORE the reload: on a loopback bind the guard
+    # returns early and the closure asserted below is never the code under test.
+    monkeypatch.setenv("SYM_ENGINE_HOST", "0.0.0.0")
     monkeypatch.delenv("SYM_ENGINE_TOKEN", raising=False)
     import service
     importlib.reload(service)
     c = TestClient(service.app)
     assert c.get("/api/symonengine/health").status_code == 200
     assert c.get("/api/symonengine/surface").status_code == 503
+
+
+def test_loopback_needs_no_token(monkeypatch):
+    """The other half of the same contract: on the loopback default there is no token to get
+    wrong, because a key defends traffic that leaves this machine and loopback traffic does
+    not leave it. Unset host AND unset token must still answer, or the provisioning step the
+    guard exists to remove comes back."""
+    monkeypatch.delenv("SYM_ENGINE_HOST", raising=False)
+    monkeypatch.delenv("SYM_ENGINE_TOKEN", raising=False)
+    import service
+    importlib.reload(service)
+    c = TestClient(service.app)
+    assert c.get("/api/symonengine/surface").status_code == 200
 
 
 def test_asking_supports_nothing_is_a_400(client):
