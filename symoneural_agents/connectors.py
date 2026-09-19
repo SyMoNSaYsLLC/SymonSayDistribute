@@ -24,6 +24,8 @@ one in a message, and then it is in a transcript.
 from __future__ import annotations
 
 import json
+import ipaddress
+import urllib.parse
 import os
 import urllib.error
 import urllib.request
@@ -46,6 +48,17 @@ FABRIC = os.environ.get("SYM_FABRIC_URL", "http://127.0.0.1:8816")
 FABRIC_TOKEN_ENV = "SYM_FABRIC_TOKEN"
 
 
+def _fabric_is_local() -> bool:
+    """Is the fabric on this machine? If so no key is needed to reach it."""
+    host = urllib.parse.urlsplit(FABRIC).hostname or ""
+    if host.lower() == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
 def _call(component: str, path: str, method: str = "GET", body: dict | None = None,
           timeout: float = 20.0) -> Any:
     """Reach another component THROUGH THE FABRIC. This process holds no component keys.
@@ -55,11 +68,14 @@ def _call(component: str, path: str, method: str = "GET", body: dict | None = No
     — where the call actually went — is put on the ToolError when something fails, which is the
     moment anybody wants it.
     """
+    # The fabric on loopback needs no key. Refusing to call without one would make this
+    # process the only thing in the estate still demanding a credential nobody requires.
     tok = (os.environ.get(FABRIC_TOKEN_ENV) or "").strip()
-    if not tok:
+    if not tok and not _fabric_is_local():
         raise ToolError(
-            f"the fabric needs {FABRIC_TOKEN_ENV} and it is not set. Every component is reached "
-            f"through it, so this one variable is all this process needs — and all it can leak.")
+            f"the fabric at {FABRIC} is not on loopback and needs {FABRIC_TOKEN_ENV}, which is "
+            f"not set. Every component is reached through it, so this one variable is all this "
+            f"process needs — and all it can leak.")
     payload = json.dumps({"component": component, "path": path, "method": method,
                           "body": body, "timeout": timeout}).encode()
     req = urllib.request.Request(
@@ -122,6 +138,12 @@ NOT_EXPOSED = {
     "image_room":      "granted as a tool; enumerated by GET /api/agents/connectors",
     "image_ready":     "granted as a tool; enumerated by GET /api/agents/connectors",
     "image_generate":  "granted as a tool; enumerated by GET /api/agents/connectors",
+    "kernel_coverage": "granted as a tool; enumerated by GET /api/agents/connectors",
+    "kernel_buildable":"granted as a tool; enumerated by GET /api/agents/connectors",
+    "driver_consistent":"granted as a tool; enumerated by GET /api/agents/connectors",
+    "sdk_toolchains":  "granted as a tool; enumerated by GET /api/agents/connectors",
+    "sdk_can_build":   "granted as a tool; enumerated by GET /api/agents/connectors",
+    "pins_drifted":    "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_fetch":      "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_browse":     "granted as a tool; enumerated by GET /api/agents/connectors",
     "estate_survey":  "granted as a tool; enumerated by GET /api/agents/connectors",
@@ -307,6 +329,52 @@ def image_generate(a: dict) -> Any:
 
 
 
+def kernel_coverage(a: dict) -> Any:
+    """For every kernel installed here, is the GPU module built for it — or will a reboot
+    leave the card with no driver."""
+    return _call("symonkernel", "/api/symonkernel/coverage", timeout=60.0)
+
+
+def kernel_buildable(a: dict) -> Any:
+    """Can a kernel module be built for the running kernel right now, and if not, which
+    precondition is missing."""
+    return _call("symonkernel", "/api/symonkernel/buildable", timeout=60.0)
+
+
+def driver_consistent(a: dict) -> Any:
+    """Do the loaded kernel module, userspace, the libraries and the packages all agree on one
+    driver version — and where does each disagreement come from."""
+    return _call("symondriver", "/api/symondriver/consistent", timeout=90.0)
+
+
+def sdk_toolchains(a: dict) -> Any:
+    """Every build toolchain on this host, with its version and whether it is actually
+    USABLE — installed and usable are different questions."""
+    return _call("symonsdk", "/api/symonsdk/toolchains", timeout=120.0)
+
+
+def sdk_can_build(a: dict) -> Any:
+    """Can this host build a given ecosystem, with every missing precondition named."""
+    eco = (a.get("ecosystem") or "").strip()
+    if not eco:
+        raise ToolError("sdk_can_build needs an ecosystem, e.g. rust, go, python, c++, swift")
+    return _call("symonsdk", f"/api/symonsdk/can-build?ecosystem={eco}", timeout=120.0)
+
+
+def pins_drifted(a: dict) -> Any:
+    """Which build inputs have moved away from the version this estate recorded (rules
+    3.1b-iii). Asks the kernel, the driver and the toolchains, and returns all three."""
+    out = {}
+    for comp, path in (("symonkernel", "/api/symonkernel/pinned"),
+                       ("symondriver", "/api/symondriver/pinned"),
+                       ("symonsdk", "/api/symonsdk/pinned")):
+        try:
+            out[comp] = _call(comp, path, timeout=120.0)
+        except ToolError as e:
+            out[comp] = {"error": str(e)}
+    return out
+
+
 CONNECTORS: list[Tool] = [
     Tool("board_settings", "Every configured setting in the estate, or one section. "
          "Optional argument: section.",
@@ -413,6 +481,26 @@ CONNECTORS: list[Tool] = [
                          "width": {"type": "integer"}, "height": {"type": "integer"},
                          "seed": {"type": "integer"}},
           "required": ["prompt", "steps", "width", "height"]}, image_generate),
+    Tool("kernel_coverage", "For every kernel installed on this host, whether the GPU module "
+         "is built for it. A kernel with no module means the card loses its driver on reboot.",
+         {"type": "object", "properties": {}}, kernel_coverage),
+    Tool("kernel_buildable", "Whether a kernel module can be built for the running kernel right "
+         "now, naming each missing precondition rather than a bare no.",
+         {"type": "object", "properties": {}}, kernel_buildable),
+    Tool("driver_consistent", "Whether the loaded kernel module, userspace, the driver "
+         "libraries and the installed packages all agree on one version, and where any "
+         "disagreement comes from.",
+         {"type": "object", "properties": {}}, driver_consistent),
+    Tool("sdk_toolchains", "Every build toolchain on this host with its version and whether it "
+         "is actually usable — present on PATH is not the same as working.",
+         {"type": "object", "properties": {}}, sdk_toolchains),
+    Tool("sdk_can_build", "Whether this host can build a given ecosystem (rust, go, python, "
+         "c++, swift, java, dotnet, node...), with every missing precondition named.",
+         {"type": "object", "properties": {"ecosystem": {"type": "string"}},
+          "required": ["ecosystem"]}, sdk_can_build),
+    Tool("pins_drifted", "Which build inputs have moved away from the version this estate "
+         "recorded, across the kernel, the driver and the toolchains.",
+         {"type": "object", "properties": {}}, pins_drifted),
 ]
 
 
@@ -438,6 +526,10 @@ def connectors() -> list[dict]:
         "device_fit": "symonprobe",
         "image_room": "symonimage", "image_ready": "symonimage",
         "image_generate": "symonimage",
+        "kernel_coverage": "symonkernel", "kernel_buildable": "symonkernel",
+        "driver_consistent": "symondriver",
+        "sdk_toolchains": "symonsdk", "sdk_can_build": "symonsdk",
+        "pins_drifted": "symonkernel",
     }
     try:
         table = {c["component"]: c for c in _fabric_get("/api/fabric/components")["components"]}
