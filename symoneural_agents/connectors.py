@@ -144,6 +144,11 @@ NOT_EXPOSED = {
     "sdk_toolchains":  "granted as a tool; enumerated by GET /api/agents/connectors",
     "sdk_can_build":   "granted as a tool; enumerated by GET /api/agents/connectors",
     "pins_drifted":    "granted as a tool; enumerated by GET /api/agents/connectors",
+    "schedule_next":   "granted as a tool; enumerated by GET /api/agents/connectors",
+    "schedule_describe":"granted as a tool; enumerated by GET /api/agents/connectors",
+    "loop_jobs":       "granted as a tool; enumerated by GET /api/agents/connectors",
+    "loop_due":        "granted as a tool; enumerated by GET /api/agents/connectors",
+    "loop_schedule":   "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_fetch":      "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_browse":     "granted as a tool; enumerated by GET /api/agents/connectors",
     "estate_survey":  "granted as a tool; enumerated by GET /api/agents/connectors",
@@ -375,6 +380,68 @@ def pins_drifted(a: dict) -> Any:
     return out
 
 
+def schedule_next(a: dict) -> Any:
+    """When a cron expression next fires. Computed, not waited for."""
+    cron = (a.get("cron") or "").strip()
+    if not cron:
+        raise ToolError("schedule_next needs a cron expression, e.g. '*/5 * * * *'")
+    q = f"/api/symonscheduler/next?cron={urllib.parse.quote(cron)}"
+    if a.get("now"):
+        q += f"&now={urllib.parse.quote(str(a['now']))}"
+    return _call("symonscheduler", q, timeout=30.0)
+
+
+def schedule_describe(a: dict) -> Any:
+    """A cron expression in words, so a wrong one is caught before it is relied on."""
+    cron = (a.get("cron") or "").strip()
+    if not cron:
+        raise ToolError("schedule_describe needs a cron expression")
+    return _call("symonscheduler",
+                 f"/api/symonscheduler/describe?cron={urllib.parse.quote(cron)}", timeout=30.0)
+
+
+def loop_jobs(a: dict) -> Any:
+    """Recurring work this machine remembers, including any record that cannot be read."""
+    q = "/api/symonloop/jobs"
+    if a.get("state"):
+        q += f"?state={urllib.parse.quote(str(a['state']))}"
+    return _call("symonloop", q, timeout=30.0)
+
+
+def loop_due(a: dict) -> Any:
+    """What recurring work is due now, expiring anything that lapsed while nothing ran."""
+    q = "/api/symonloop/due"
+    if a.get("now"):
+        q += f"?now={urllib.parse.quote(str(a['now']))}"
+    return _call("symonloop", q, timeout=30.0)
+
+
+def loop_schedule(a: dict) -> Any:
+    """Record recurring work: ask the scheduler when it next fires, then remember it.
+
+    The only composed tool here, and deliberately so. symonscheduler computes WHEN and knows
+    nothing about jobs; symonloop remembers WHAT and never parses a cadence. Neither can do
+    this alone, and putting the join in one tool keeps it out of both components.
+    """
+    work = (a.get("work") or "").strip()
+    cadence = (a.get("cadence") or "").strip()
+    if not work:
+        raise ToolError("loop_schedule needs `work` — what should happen")
+    if not cadence:
+        raise ToolError("loop_schedule needs `cadence`, a cron expression like '0 9 * * *'")
+    nxt = _call("symonscheduler",
+                f"/api/symonscheduler/next?cron={urllib.parse.quote(cadence)}", timeout=30.0)
+    if not nxt.get("found"):
+        raise ToolError(f"{cadence!r} names no moment that occurs: {nxt.get('why', '')}")
+    body = {"work": work, "cadence": cadence, "next_fire": nxt["next"]}
+    if a.get("job_id"):
+        body["job_id"] = str(a["job_id"])
+    if a.get("note"):
+        body["note"] = str(a["note"])
+    rec = _call("symonloop", "/api/symonloop/jobs", "POST", body, timeout=30.0)
+    return {"job": rec, "first_fire": nxt["next"], "seconds_away": nxt.get("seconds_away")}
+
+
 CONNECTORS: list[Tool] = [
     Tool("board_settings", "Every configured setting in the estate, or one section. "
          "Optional argument: section.",
@@ -501,6 +568,26 @@ CONNECTORS: list[Tool] = [
     Tool("pins_drifted", "Which build inputs have moved away from the version this estate "
          "recorded, across the kernel, the driver and the toolchains.",
          {"type": "object", "properties": {}}, pins_drifted),
+    Tool("schedule_next", "When a cron expression next fires, computed rather than waited for. "
+         "Optional `now` makes the answer reproducible.",
+         {"type": "object", "properties": {"cron": {"type": "string"}, "now": {"type": "string"}},
+          "required": ["cron"]}, schedule_next),
+    Tool("schedule_describe", "A cron expression in words, including the POSIX rule that "
+         "surprises people when both day fields are restricted.",
+         {"type": "object", "properties": {"cron": {"type": "string"}},
+          "required": ["cron"]}, schedule_describe),
+    Tool("loop_jobs", "Recurring work this machine remembers across restarts, with unreadable "
+         "records named rather than dropped.",
+         {"type": "object", "properties": {"state": {"type": "string"}}}, loop_jobs),
+    Tool("loop_due", "What recurring work is due now, expiring anything that lapsed while "
+         "nothing was running.",
+         {"type": "object", "properties": {"now": {"type": "string"}}}, loop_due),
+    Tool("loop_schedule", "Record recurring work: computes the first fire from the cadence and "
+         "stores it durably, so a restart does not forget it.",
+         {"type": "object",
+          "properties": {"work": {"type": "string"}, "cadence": {"type": "string"},
+                         "job_id": {"type": "string"}, "note": {"type": "string"}},
+          "required": ["work", "cadence"]}, loop_schedule),
 ]
 
 
@@ -530,6 +617,9 @@ def connectors() -> list[dict]:
         "driver_consistent": "symondriver",
         "sdk_toolchains": "symonsdk", "sdk_can_build": "symonsdk",
         "pins_drifted": "symonkernel",
+        "schedule_next": "symonscheduler", "schedule_describe": "symonscheduler",
+        "loop_jobs": "symonloop", "loop_due": "symonloop",
+        "loop_schedule": "symonloop",
     }
     try:
         table = {c["component"]: c for c in _fabric_get("/api/fabric/components")["components"]}

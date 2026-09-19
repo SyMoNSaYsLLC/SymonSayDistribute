@@ -111,12 +111,14 @@ rather than an edit here: this file no longer knows or cares what port anything 
 The cost is honest and stated: nothing is reachable while the fabric is down, and `reachable()`
 says exactly that rather than guessing per component from a table this process no longer keeps.
 
-Twenty-eight tools reaching fourteen components: board, ravencalc and the gateway, plus symonscope
+Thirty-three tools reaching sixteen components: board, ravencalc and the gateway, plus symonscope
 (what the estate is), symonweb (fetch and browse), symonrag (retrieval with citations),
 symonpayload (admission), symonlora (adapter planning), symonengine (what the build supports)
 symonprobe (what the card supports), symonimage (generating on a card it shares),
 symonkernel (whether a module is built for every kernel), symondriver (whether userspace
-agrees with the kernel module) and symonsdk (what can be built here, and with what).
+agrees with the kernel module), symonsdk (what can be built here, and with what),
+symonscheduler (when recurring work is next due) and symonloop (what recurring work this
+machine remembers across a restart).
 Every one by component name, through the fabric.
 
 Verified live: an agent process whose entire environment held only `SYM_FABRIC_TOKEN` reached
