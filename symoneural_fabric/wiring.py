@@ -62,13 +62,14 @@ KNOWN: dict[str, dict[str, Any]] = {
     "symonrag":     {"prefix": "/api/symonrag",     "token_env": "SYM_RAG_TOKEN"},
     "symonlora":    {"prefix": "/api/symonlora",    "token_env": "SYM_LORA_TOKEN"},
     "symonengine":  {"prefix": "/api/symonengine",  "token_env": "SYM_ENGINE_TOKEN"},
-    "symonimage":   {"prefix": "/api/symonimage",   "token_env": "SYM_IMAGE_TOKEN"},
+    "symonimage":   {"prefix": "/api/symonimage",   "token_env": "SYM_SYMONIMAGE_TOKEN"},
     "symonkernel":  {"prefix": "/api/symonkernel",  "token_env": "SYM_KERNEL_TOKEN"},
     "symondriver":  {"prefix": "/api/symondriver",  "token_env": "SYM_DRIVER_TOKEN"},
     "symonsdk":  {"prefix": "/api/symonsdk",  "token_env": "SYM_SDK_TOKEN"},
     "symoncross":  {"prefix": "/api/symoncross",  "token_env": "SYM_CROSS_TOKEN"},
     "symonbuild":  {"prefix": "/api/symonbuild",  "token_env": "SYM_BUILD_TOKEN"},
     "symonoematch":  {"prefix": "/api/symonoematch",  "token_env": "SYM_OEMATCH_TOKEN"},
+    "symonloop":  {"prefix": "/api/symonloop",  "token_env": "SYM_LOOP_TOKEN"},
     "symonscheduler": {"prefix": "/api/symonscheduler", "token_env": "SYM_SCHEDULER_TOKEN"},
     # The gateway speaks the public Messages dialect, whose paths are fixed by its clients and
     # are not ours to prefix. Its credential is a FILE, named on the board, never an env var.
