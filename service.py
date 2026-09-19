@@ -33,6 +33,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
 from symoneural_agents import connectors as C
+from symoneural_agents import plugins as P
 from symoneural_agents.registry import RunNotFound, Runs
 from symoneural_agents.tools import Registry, ToolError
 
@@ -50,6 +51,23 @@ app = FastAPI(
 TOOLS = Registry()
 for _t in C.CONNECTORS:
     TOOLS.add(_t)
+
+# Plugins add tools. Discovery happens at start-up and the RECORD is kept, so the surface can
+# say what was present, what was enabled, and what was refused — three different states that a
+# bare list of loaded tools collapses into one.
+PLUGIN_RECORD: list[dict] = []
+try:
+    _ptools, PLUGIN_RECORD = P.load(C._call)
+    for _t in _ptools:
+        try:
+            TOOLS.add(_t)
+        except ValueError as _e:
+            # A plugin may not take a name the estate already uses. Refusing is the only safe
+            # answer: silently overriding a connector would let a plugin redirect a tool an
+            # agent already trusts.
+            PLUGIN_RECORD.append({"name": _t.name, "state": "refused", "why": str(_e)})
+except Exception as _e:                      # a broken plugin directory must not stop the unit
+    PLUGIN_RECORD = [{"state": "discovery failed", "why": f"{type(_e).__name__}: {_e}"}]
 
 RUNS = Runs(max_concurrent=int(os.environ.get("SYM_AGENTS_MAX_CONCURRENT", "4")))
 
@@ -125,6 +143,25 @@ def connectors(_: Authed) -> dict[str, Any]:
     useful than a timeout inside a run three steps later.
     """
     return {"connectors": C.connectors(), "reachable": C.reachable()}
+
+
+@app.get("/api/agents/plugins")
+def plugins(_: Authed) -> dict[str, Any]:
+    """Every plugin present, what it declares, and what was decided about it.
+
+    A plugin is a MANIFEST, never code. It names a component, where that component answers,
+    and the tools that reach it — so the worst a hostile one can do is point a tool at an
+    endpoint, which is readable before it is enabled.
+
+    Presence is not consent: nothing loads until it is named in SYM_PLUGINS_ENABLED. A plugin
+    whose licence this runtime cannot absorb without a placement decision is listed with that
+    reason rather than loaded.
+    """
+    return {"root": str(P.plugin_root()),
+            "enabled": P.enabled_names(),
+            "count": len(PLUGIN_RECORD),
+            "permissive_licences": sorted(P.PERMISSIVE),
+            "plugins": PLUGIN_RECORD}
 
 
 # --------------------------------------------------------------------------- runs

@@ -73,3 +73,38 @@ bind; a report distinguishes answering from giving up quietly.
 ## Releases
 
 This branch cuts its own releases, tagged `agents/v<version>`.
+
+## Connectors
+
+A connector is a tool that reaches another component **over its published HTTP surface** —
+never into its files. That is the whole definition, and it is deliberately narrow: if a
+component has no endpoint for something, the connector cannot do it, and the answer is to build
+the endpoint rather than to reach around it.
+
+It makes the estate's wiring enumerable. `GET /api/agents/connectors` lists every wire with its
+component, endpoint and token variable, and whether the far end is answering — because a
+connector to something that is not running is a wire to nowhere, and saying so beats a timeout
+three steps into a run.
+
+None accepts a credential as an argument. Each reads its own token from the environment at call
+time: an argument a model can fill is an argument a model can be persuaded to fill with a secret.
+
+## Plugins
+
+A plugin is a **manifest**, never code. It names a component, where that component answers, and
+the tools that reach it. Nothing in it is imported or executed.
+
+The obvious design is a directory of Python the runtime imports. That makes dropping a file into
+a directory equivalent to arbitrary execution inside the runtime holding the gateway credential
+— the capability a plugin adds would be bounded by nothing, and the grant model this runtime is
+built on would be decorative. A manifest can only ever describe an HTTP call.
+
+**Presence is not consent.** Discovery lists what is there; nothing loads until it is named in
+`SYM_PLUGINS_ENABLED`. A plugin that appeared on disk has not been chosen.
+
+**The licence is part of the manifest.** A plugin whose licence this runtime cannot absorb
+without a placement decision is listed with that reason rather than loaded — the placement
+procedure applied at run time.
+
+A plugin may not take a name the estate already uses. Silently overriding a connector would let
+a plugin redirect a tool an agent already trusts.
