@@ -18,6 +18,10 @@ VLLM_VENV = "/home/google/.venvs/vllm-0271-cu130"
 
 @pytest.fixture
 def client(monkeypatch):
+    # Off-loopback, so `headers=auth()` in this file actually exercises the guard.
+    # On a loopback bind the guard returns before comparing anything, which would
+    # make every authenticated test here pass with a wrong token or none at all.
+    monkeypatch.setenv("SYM_PROBE_HOST", "0.0.0.0")
     monkeypatch.setenv("SYM_PROBE_TOKEN", TOKEN)
     import service
     importlib.reload(service)
@@ -41,6 +45,9 @@ def test_a_venv_without_vllm_is_refused_by_name(tmp_path):
 
 
 def test_health_is_public_and_the_rest_is_closed(monkeypatch):
+    # The bind address decides. Bind wide BEFORE the reload: on a loopback bind the guard
+    # returns early and the closure asserted below is never the code under test.
+    monkeypatch.setenv("SYM_PROBE_HOST", "0.0.0.0")
     monkeypatch.delenv("SYM_PROBE_TOKEN", raising=False)
     import service
     importlib.reload(service)
@@ -48,6 +55,19 @@ def test_health_is_public_and_the_rest_is_closed(monkeypatch):
     assert c.get("/api/symonprobe/health").status_code == 200
     r = c.get("/api/symonprobe/devices")
     assert r.status_code == 503 and "SYM_PROBE_TOKEN" in r.json()["detail"]
+
+
+def test_loopback_needs_no_token(monkeypatch):
+    """The other half of the same contract: on the loopback default there is no token to get
+    wrong, because a key defends traffic that leaves this machine and loopback traffic does
+    not leave it. Unset host AND unset token must still answer, or the provisioning step the
+    guard exists to remove comes back."""
+    monkeypatch.delenv("SYM_PROBE_HOST", raising=False)
+    monkeypatch.delenv("SYM_PROBE_TOKEN", raising=False)
+    import service
+    importlib.reload(service)
+    c = TestClient(service.app)
+    assert c.get("/api/symonprobe/devices").status_code == 200
 
 
 def test_a_bad_venv_over_http_is_409_not_500(client):
@@ -96,13 +116,13 @@ def test_registered_names_are_found_and_are_not_file_names():
 
 
 def test_suggest_offers_candidates_and_refuses_to_call_them_an_answer():
-    s = R.suggest(VLLM_VENV, "/models/symon")
+    s = R.suggest(VLLM_VENV, "/mnt/models/symon")
     assert "candidates" in s and "caveat" in s
     assert "not an answer" in s["caveat"]
 
 
 def test_a_candidate_is_only_offered_if_the_runtime_actually_registers_it():
-    s = R.suggest(VLLM_VENV, "/models/symon")
+    s = R.suggest(VLLM_VENV, "/mnt/models/symon")
     for kind, key in (("tool_call", "tool_call_parser"), ("reasoning", "reasoning_parser")):
         got = s["candidates"][key]
         if got is not None:
