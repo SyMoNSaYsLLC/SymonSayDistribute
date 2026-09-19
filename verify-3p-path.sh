@@ -23,6 +23,18 @@ set -o pipefail
 GW=${1:-http://127.0.0.1:9001}
 [ "$GW" = "--gateway" ] && GW=$2
 KEY_FILE=${SYM_GW_KEY_FILE:-$HOME/.config/symoneural/gateway-9001.key}
+
+# One temporary directory, created atomically, removed on ANY exit.
+#
+# This used "$WORK/models.json", "$WORK/stream.txt" and "$WORK/check.py" — paths the script composed itself. $$
+# reads like uniqueness and is not: pids are small, reused, and visible to anyone who can run
+# ps, and /tmp is world-writable, so anything able to create that path first as a symlink
+# redirects the write. "$WORK/check.py" was then EXECUTED, which is the one that matters.
+#
+# There was also no trap, so any failure between the first write and the end left them behind,
+# including one holding a response fetched with the gateway credential.
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/verify-3p-XXXXXX") || exit 1
+trap 'rm -rf "$WORK"' EXIT
 FAILS=0
 pass() { printf '  PASS  %s\n' "$*"; }
 fail() { printf '  FAIL  %s\n' "$*"; FAILS=$((FAILS+1)); }
@@ -47,8 +59,8 @@ code=$(curl -s -o /dev/null -w '%{http_code}' -m 5 -H "x-api-key: $KEY" "$GW/v1/
 [ "$code" = 200 ] && pass "x-api-key is accepted as well as bearer" || fail "x-api-key returned $code"
 
 hdr "3. model rows satisfy the client's naming rule"
-curl -s -m 8 "${AUTH[@]}" "$GW/v1/models" > /tmp/.m.$$ 2>/dev/null
-python3 -I - /tmp/.m.$$ <<'PY'
+curl -s -m 8 "${AUTH[@]}" "$GW/v1/models" > "$WORK/models.json" 2>/dev/null
+python3 -I - "$WORK/models.json" <<'PY'
 import json, re, sys
 d = json.load(open(sys.argv[1]))
 rows = d.get("data", [])
@@ -84,7 +96,7 @@ hdr "4. a real completion on every model, plus the legacy aliases"
 # inside a single-quoted shell string silently produced a Python SyntaxError here,
 # which 2>/dev/null then swallowed, so every model reported an empty result while the
 # path was in fact healthy. A test that can fail silently is worse than no test.
-cat > /tmp/.chk.$$.py <<'PY'
+cat > "$WORK/check.py" <<'PY'
 import json, sys
 try:
     d = json.load(sys.stdin)
@@ -104,16 +116,15 @@ PY
 for m in symon-sonnet symon-opus symon-fable symon-haiku symon-chat symon-coder symon-work; do
   out=$(curl -s -m 300 -X POST "${AUTH[@]}" "$GW/v1/messages" \
         -d "{\"model\":\"$m\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"Reply with exactly: READY\"}]}")
-  got=$(printf '%s' "$out" | python3 -I /tmp/.chk.$$.py 2>&1); rc=$?
+  got=$(printf '%s' "$out" | python3 -I "$WORK/check.py" 2>&1); rc=$?
   if [ $rc -eq 0 ]; then pass "$m -> $got"; else fail "$m -> $got"; fi
 done
-rm -f /tmp/.chk.$$.py
 
 hdr "5. streaming event order"
 curl -s -N -m 180 -X POST "${AUTH[@]}" "$GW/v1/messages" \
   -d '{"model":"symon-sonnet","max_tokens":48,"stream":true,"messages":[{"role":"user","content":"Count: one two three"}]}' \
-  > /tmp/.s.$$ 2>/dev/null
-python3 -I - /tmp/.s.$$ <<'PY'
+  > "$WORK/stream.txt" 2>/dev/null
+python3 -I - "$WORK/stream.txt" <<'PY'
 import sys, re
 ev = [l.split(":",1)[1].strip() for l in open(sys.argv[1]) if l.startswith("event:")]
 ok = True
@@ -159,6 +170,6 @@ else
   fail "helper missing at $H"
 fi
 
-rm -f /tmp/.m.$$ /tmp/.s.$$
+
 hdr "result"
 if [ "$FAILS" -eq 0 ]; then echo "  ALL CHECKS PASSED"; exit 0; else echo "  $FAILS CHECK GROUP(S) FAILED"; exit 1; fi

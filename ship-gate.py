@@ -579,8 +579,11 @@ def census_scripts(rep: Report, unit: str, root: Path, files: list[Path]):
         m = mod.lower().replace("-", "_")
         if m == unit_norm or m.startswith(f"symoneural_{unit_norm}") or m == f"symoneural_{unit_norm}":
             continue
-        if (root / mod).is_dir() or (root / f"{mod}.py").is_file():
-            continue          # it is in the unit's own tree
+        # In the unit's own tree — searched RECURSIVELY, because a packed unit extracts under a
+        # prefix directory (`board-1.2.0/service.py`), so a top-level check finds nothing and
+        # the unit's own module is reported as an unresolved third party.
+        if any(True for _ in root.rglob(f"{mod}.py")) or any(p.is_dir() for p in root.rglob(mod)):
+            continue
         dist, lic = "", ""
         try:
             import importlib.metadata as im
@@ -595,6 +598,29 @@ def census_scripts(rep: Report, unit: str, root: Path, files: list[Path]):
         except Exception:
             pass
         if not dist:
+            # No dist-info does not mean not installed. A distribution-packaged module
+            # (python3-fastapi and friends) carries no metadata mapping module to
+            # distribution, so packages_distributions() returns nothing for every one of them
+            # — and every FastAPI service in this estate came out "closure unverified" while
+            # importing perfectly. Resolve it the same way a binary is resolved: find the file
+            # the interpreter would load, and ask the package manager who owns it.
+            try:
+                import importlib.util as _u
+                spec = _u.find_spec(mod)
+                origin = getattr(spec, "origin", None) or ""
+            except Exception:
+                origin = ""
+            pkg = ""
+            if origin and origin not in ("built-in", "frozen"):
+                rc, out, _, _ = run(["dpkg", "-S", origin])
+                if rc == 0 and ":" in out:
+                    pkg = out.split(":", 1)[0].split(",")[0].strip()
+            if pkg:
+                lic = _deb_licence(pkg)
+                klass, why = classify(lic or None, component=pkg)
+                rep.component(unit, pkg, "system", lic or "unstated", klass, why,
+                              f"python import '{mod}' in {unit}, resolved through the package manager")
+                continue
             rep.finding(unit, "REVIEW", "census", f"python import '{mod}' resolves to no installed distribution — closure unverified")
             continue
         klass, why = classify(normalise(lic) or None, component=dist)
