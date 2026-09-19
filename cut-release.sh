@@ -70,7 +70,21 @@ done
 echo "   $(wc -l < "$STAGE/SHA256SUMS") sums verified"
 
 echo "== 3. ship gate"
-python3 -I "$HERE/ship-gate.py" --stage "$STAGE" --repo . --json "$STAGE/SHIP-GATE-REPORT.json"; rc=$?
+# WHICH POLICY APPLIES IS DECIDED BY WHERE THIS IS, NOT BY WHOEVER RUNS IT.
+#
+# A GPL-3.0 recipe in SymonSayOpen is correctly placed — it is why that tree exists. The same
+# recipe in SymonSayDistribute is a defect. Gating both by one policy made the open trees, whose
+# entire purpose is licence placement, the ones that could never pass their own gate.
+#
+# Derived from the remote so nobody has to remember, and defaulting to proprietary so an
+# undetermined tree is gated as the product rather than waved through.
+REMOTE=$(git remote get-url origin 2>/dev/null)
+case "$REMOTE" in
+  *SymonSayOpen*|*SymonSayOSS*) PROFILE=open ;;
+  *)                            PROFILE=proprietary ;;
+esac
+echo "   policy profile: $PROFILE (from $REMOTE)"
+python3 -I "$HERE/ship-gate.py" --stage "$STAGE" --repo . --profile "$PROFILE" --json "$STAGE/SHIP-GATE-REPORT.json"; rc=$?
 [ $rc -eq 0 ] || { echo "   SHIP GATE FAILED rc=$rc — nothing is published"; exit 5; }
 
 echo "== 4. assets"

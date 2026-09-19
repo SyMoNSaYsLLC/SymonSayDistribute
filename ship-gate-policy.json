@@ -458,5 +458,28 @@
       "path": "selftest.sh",
       "recorded": "2026-09-18"
     }
-  ]
+  ],
+  "profiles": {
+    "proprietary": {
+      "trees": [
+        "SymonSayDistribute",
+        "SymonSaySource"
+      ],
+      "why": "The product. Copyleft reaching a shipped artifact changes what the product is, so STRONG_COPYLEFT and NETWORK_COPYLEFT fail. This is the default, and it is the default deliberately: a unit whose tree cannot be determined is gated as though it were the product.",
+      "overrides": {}
+    },
+    "open": {
+      "trees": [
+        "SymonSayOpen",
+        "SymonSayOSS"
+      ],
+      "why": "Builds whose OUTPUT is copyleft. A GPL-3.0 recipe here is correctly placed \u2014 it is the reason the tree exists \u2014 so the copyleft classes pass. Nothing else is relaxed: an UNKNOWN or UNDECLARED licence still fails, because 'we could not establish it' is not the same as 'it is copyleft and that is fine'.",
+      "overrides": {
+        "STRONG_COPYLEFT": "PASS",
+        "NETWORK_COPYLEFT": "PASS",
+        "WEAK_COPYLEFT_LIB": "PASS",
+        "WEAK_COPYLEFT_FILE": "PASS"
+      }
+    }
+  }
 }

@@ -32,7 +32,18 @@ NEUTRALISE = {e.lower() for e in CLASSES["STRONG_COPYLEFT"]["exceptions_that_neu
 USE_KW = [k.lower() for k in CLASSES["USE_RESTRICTED"].get("keywords", [])]
 RANK = ["PERMISSIVE", "INVOKED_NOT_LINKED", "WEAK_COPYLEFT_FILE", "WEAK_COPYLEFT_LIB", "NUISANCE_CLAUSE", "PROPRIETARY_THIRD_PARTY",
         "USE_RESTRICTED", "UNKNOWN", "STRONG_COPYLEFT", "NETWORK_COPYLEFT"]
-FAIL_CLASSES = {c for c, v in CLASSES.items() if v["verdict"] == "FAIL"}
+PROFILES = POLICY.get("profiles", {})
+# The verdict depends on WHERE a thing is placed, which is the placement procedure itself. A
+# GPL-3.0 recipe in SymonSayOpen is correctly placed; the same recipe in SymonSayDistribute is
+# a defect. Gating both by one policy made the open trees — whose whole purpose is licence
+# placement — the ones that could never pass their own gate.
+#
+# The default is proprietary, deliberately: a unit whose tree cannot be determined is gated as
+# though it were the product.
+PROFILE = os.environ.get("SYM_GATE_PROFILE", "proprietary")
+_OVERRIDES = PROFILES.get(PROFILE, {}).get("overrides", {})
+FAIL_CLASSES = {c for c, v in CLASSES.items()
+                if _OVERRIDES.get(c, v["verdict"]) == "FAIL"}
 EXC_COMPONENTS = {e["component"].lower(): e for e in POLICY.get("exceptions", [])}
 FIRST_PARTY = {u.lower() for u in POLICY["first_party_units"]}
 TRADEMARKS = re.findall(r"\((.*?)\)", POLICY["trademark_rule"])[0].split(", ")
@@ -680,7 +691,15 @@ def main():
     ap.add_argument("--notices", type=Path, help="THIRD-PARTY-NOTICES.md (default: <stage>/THIRD-PARTY-NOTICES.md)")
     ap.add_argument("--json", type=Path, help="write the full report here")
     ap.add_argument("--keep-tmp", action="store_true")
+    ap.add_argument("--profile", choices=sorted(PROFILES) or ["proprietary"],
+                    help="which tree's policy to apply; default proprietary, so an "
+                         "undetermined tree is gated as the product")
     a = ap.parse_args()
+    if a.profile and a.profile != PROFILE:
+        globals()["PROFILE"] = a.profile
+        ov = PROFILES.get(a.profile, {}).get("overrides", {})
+        globals()["FAIL_CLASSES"] = {c for c, v in CLASSES.items()
+                                     if ov.get(c, v["verdict"]) == "FAIL"}
     rep = Report(); tmp = Path(tempfile.mkdtemp(prefix="ship-gate-", dir=os.environ.get("CLAUDE_JOB_DIR", "/tmp") + "/tmp" if os.environ.get("CLAUDE_JOB_DIR") else None))
     try:
         if a.stage and a.stage.exists():
@@ -781,7 +800,7 @@ def main():
         for f in reviews: print(f"   REVIEW  {f['kind']:<22} {f['detail']}")
         if u["verdict"] == "FAIL": overall = "FAIL"
         elif u["verdict"] == "REVIEW" and overall == "PASS": overall = "REVIEW"
-    print(f"\nSHIP GATE: {overall}")
+    print(f"\nSHIP GATE: {overall}   (profile: {PROFILE})")
     if a.json:
         a.json.write_text(json.dumps({"overall": overall, "policy": POLICY["schema"], "units": rep.units}, indent=1))
         print(f"report: {a.json}")
