@@ -82,6 +82,24 @@ def main() -> int:
                       capture_output=True).returncode == 0:
         print(f"{store.parent} is inside a git repository — weights never go there", file=sys.stderr); return 4
 
+    # Writability, checked BEFORE anything is printed as if it were going to happen.
+    # This was a raw PermissionError traceback out of staging.mkdir() on 2026-09-19: /models is
+    # root-owned, and the tool had already printed the device, the free space and the file count
+    # as though the placement were under way. A check that runs after the reassuring output is
+    # not a pre-check. Not fixed by running as root — a store the operator cannot write is a
+    # store decision, and it belongs in front of them rather than inside a stack trace.
+    if not os.access(store, os.W_OK):
+        try:
+            owner = store.owner() + ":" + store.group()
+        except Exception:
+            owner = "unknown owner"
+        print(f"{store} is not writable by this user (owned by {owner}). Weights are not "
+              f"placed with sudo — give the store to the user that serves from it, or make "
+              f"the model's own directory first:\n"
+              f"  sudo install -d -o $(id -un) -g $(id -gn) {dest}",
+              file=sys.stderr)
+        return 4
+
     print(f"place   {a.name}")
     print(f"  from    {src}")
     print(f"  into    {dest}")
