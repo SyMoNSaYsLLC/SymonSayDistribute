@@ -80,6 +80,13 @@ cp -a "$SRC"/. "$WT"/ || exit 4
 find "$WT" -mindepth 2 -maxdepth 3 -name '.git' -exec rm -rf {} + 2>/dev/null
 cp "$LIC" "$WT/LICENSE" || exit 4
 
+# Only if the source did not already bring one. The stub is a starting point for a thing that
+# has no document yet; writing it unconditionally CLOBBERS a real one, which is what happened to
+# a 65-line gates.md on the first two branches this placed — replaced by a template, committed,
+# and pushed, with the exit code reporting success throughout.
+if [ -s "$WT/$NAME.md" ]; then
+  echo "  keeping the $NAME.md the source already carries ($(wc -l < "$WT/$NAME.md") lines)"
+else
 cat > "$WT/$NAME.md" <<DOC
 # $NAME
 
@@ -102,6 +109,7 @@ Placed by the placement procedure: $WHY.
 This branch cuts its own releases, tagged \`$NAME/v<version>\`. A bare version number would be
 ambiguous the moment a second thing sits at the same number.
 DOC
+fi
 
 cd "$WT" || exit 4
 
