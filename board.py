@@ -55,6 +55,12 @@ ENV_OF = {
     # unit reads, so it has no mapping — `3p` acts on it.
     ("client_3p", "gateway_url"): "SYM_3P_GATEWAY_URL",
     ("client_3p", "credential_helper"): "SYM_3P_CREDENTIAL_HELPER",
+    # The credential is named by PATH and never by value. Section 3.2 permits fingerprints and
+    # file locations only, and both surfaces already want a path rather than a secret: the web
+    # console reads SYM_GW_KEY_FILE server-side, and the client invokes a helper that prints
+    # the token. Putting a key on a board would be the one thing neither of them asked for.
+    ("client", "credential"): "SYM_GW_KEY_FILE",
+    ("client", "gateway_url"): "SYM_GW_URL",
 }
 
 # The client loads a config-library entry only when its id is a 36-character UUID. An entry
@@ -165,6 +171,31 @@ def sh(*a) -> str:
         return ""
 
 
+def fingerprint(path: str) -> tuple[str, str]:
+    """Which credential is live, without anyone seeing it.
+
+    Returns (fingerprint, note). The value is hashed and discarded in the same expression; it
+    is never returned, never written to the board, and never printed. An operator confirming
+    that two surfaces hold the SAME key compares two fingerprints, which is the whole reason
+    section 3.2 permits them.
+    """
+    import hashlib
+    p = Path(os.path.expanduser(path))
+    if not p.is_file():
+        return ("", f"no credential at {p}")
+    try:
+        raw = p.read_bytes().strip()
+    except Exception as e:
+        return ("", f"{p} is not readable: {e}")
+    if not raw:
+        return ("", f"{p} is empty")
+    mode = oct(p.stat().st_mode & 0o777)[2:]
+    note = f"{p}  mode {mode}  {len(raw)} bytes"
+    if mode != "600":
+        note += "  — MODE SHOULD BE 600"
+    return (hashlib.sha256(raw).hexdigest()[:16], note)
+
+
 def card() -> dict:
     out = sh("nvidia-smi", "--query-gpu=memory.total,memory.used,memory.free",
              "--format=csv,noheader,nounits")
@@ -248,6 +279,111 @@ def client_3p(board: Board) -> list[tuple[str, str, str]]:
     return rows
 
 
+SURFACES = ("3p", "webui", "both", "off")
+
+
+def client_surfaces(board: Board) -> list[tuple[str, str, str]]:
+    """Which surface is selected, and is it actually wired to reach Symon.
+
+    Both surfaces take the credential the same correct way and neither stores it: the web
+    console reads the key file server-side, the client invokes a helper that prints the token.
+    The board selects WHICH gets wired and names WHERE the key is. It carries no key.
+    """
+    vals = board.values("client")
+    surface = (vals.get("surface") or "off").lower()
+    keypath = vals.get("credential", "")
+    rows: list[tuple[str, str, str]] = []
+
+    if surface not in SURFACES:
+        return [("surface", "INVALID", f"{surface!r} is not one of {', '.join(SURFACES)}")]
+    rows.append(("surface", surface, "toggle: symon-board client 3p|webui|both|off"))
+
+    fp, note = fingerprint(keypath) if keypath else ("", "no credential named on the board")
+    rows.append(("credential", fp or "MISSING", note))
+
+    want3p = surface in ("3p", "both")
+    wantweb = surface in ("webui", "both")
+
+    if want3p:
+        prof = Path(os.path.expanduser(vals.get("profile", "")))
+        meta = prof / "configLibrary" / "_meta.json"
+        applied = ""
+        if meta.is_file():
+            try:
+                applied = json.loads(meta.read_text()).get("appliedId", "")
+            except Exception:
+                applied = ""
+        entry = prof / "configLibrary" / f"{applied}.json"
+        if not applied:
+            rows.append(("3p_entry", "NONE", "no entry applied"))
+        elif not UUID_RE.match(applied):
+            rows.append(("3p_entry", "INERT", f"{applied} is not a UUID — the client will not load it"))
+        elif not entry.is_file():
+            rows.append(("3p_entry", "MISSING", f"{applied} applied but its file is absent"))
+        else:
+            # Does the entry take its credential from a helper, or does it hold one?
+            try:
+                cfg = json.loads(entry.read_text())
+            except Exception as e:
+                cfg = {}
+                rows.append(("3p_entry", "UNREADABLE", str(e)[:60]))
+            kind = cfg.get("inferenceCredentialKind", "")
+            helper = cfg.get("inferenceCredentialHelper", "")
+            rows.append(("3p_entry", "ok", applied))
+            if kind == "helper-script" and helper:
+                h = os.path.expanduser(helper)
+                if not os.access(h, os.X_OK):
+                    rows.append(("3p_credential", "HELPER NOT EXECUTABLE", h))
+                else:
+                    # THE ACTUAL QUESTION. Not "is a helper configured" but "does what it
+                    # emits match the key the board names". A helper can be present,
+                    # executable, and handing the client a different or stale credential;
+                    # every check short of this one passes while inference fails on a 401.
+                    #
+                    # Both sides are hashed and compared. Neither value is returned, stored,
+                    # printed or logged — the comparison is the whole output.
+                    import hashlib, subprocess
+                    try:
+                        out = subprocess.run([h], capture_output=True, timeout=15)
+                        emitted = out.stdout.strip()
+                    except Exception as e:
+                        emitted = b""
+                        rows.append(("3p_credential", "HELPER FAILED", str(e)[:60]))
+                    if emitted:
+                        # a helper may emit a bare token or {"token": ...}
+                        tok = emitted
+                        if emitted.lstrip().startswith(b"{"):
+                            try:
+                                tok = json.loads(emitted).get("token", "").encode()
+                            except Exception:
+                                tok = emitted
+                        efp = hashlib.sha256(tok.strip()).hexdigest()[:16]
+                        if efp == fp and fp:
+                            rows.append(("3p_credential", "linked",
+                                         f"{h} emits the key the board names ({efp})"))
+                        else:
+                            rows.append(("3p_credential", "MISMATCH",
+                                         f"{h} emits {efp}; the board names {fp or '(none)'} "
+                                         "— the client is being handed a different credential"))
+                    elif not any(r[0] == "3p_credential" for r in rows):
+                        rows.append(("3p_credential", "HELPER EMITTED NOTHING", h))
+            elif kind == "static":
+                # A static kind means the key is IN the client's config file on disk.
+                rows.append(("3p_credential", "STATIC — KEY ON DISK",
+                             "inferenceCredentialKind is 'static', so the value sits in the "
+                             "entry. Switch to helper-script; the board will not carry a key "
+                             "and neither should that file."))
+            else:
+                rows.append(("3p_credential", "UNSET", f"kind={kind or '(none)'}"))
+
+    if wantweb:
+        url = vals.get("webui_url", "")
+        code = sh("bash", "-lc", f"curl -s -o /dev/null -w '%{{http_code}}' -m 5 {url}") if url else ""
+        rows.append(("webui", code or "unreachable",
+                     f"{url} — reads the key file server-side via SYM_GW_KEY_FILE, never in a browser"))
+    return rows
+
+
 def live(board: Board) -> list[str]:
     """What is actually true, right now. Rewritten on every show."""
     chat_port = (board.get("ports", "chat") or ("8802", ""))[0]
@@ -283,8 +419,8 @@ def live(board: Board) -> list[str]:
             if want and want[0] != v:
                 note = f"DIFFERS — board says {want[0]}"
             out.append(row(k, v, note))
-    for k, v, note in client_3p(board):
-        out.append(row(f"3p_{k}", v, note))
+    for k, v, note in client_surfaces(board):
+        out.append(row(f"client_{k}", v, note))
     if c:
         out.append(row("card_total_mib", c["total_mib"], "measured now"))
         out.append(row("card_free_mib", c["free_mib"],
@@ -416,6 +552,35 @@ def cmd_check(a) -> int:
     return 0
 
 
+def cmd_client(a) -> int:
+    """Select which surface receives the credential, and report whether it is wired."""
+    b = Board.load(a.board)
+    if a.surface in SURFACES:
+        found = False
+        for i, s, k, v, note in list(b.walk()):
+            if s == "client" and k == "surface":
+                e = _ENTRY.match(b.lines[i])
+                pad = " " * max(1, 28 - len(f"{k} = {a.surface}"))
+                b.lines[i] = f"{e.group(1)}{k}{e.group(3)}{a.surface}{pad}# {note}"
+                found = True
+        if not found:
+            print("no [client] surface line on the board", file=sys.stderr)
+            return 2
+        Path(a.board).write_text(b.text())
+        print(f"credential surface: {a.surface}")
+        b = Board.load(a.board)
+    bad = 0
+    print()
+    for k, v, note in client_surfaces(b):
+        broken = v.isupper() and v not in ("ok",) and v != "OFF"
+        bad += broken
+        print(f"  {'FAIL' if broken else 'ok  '}  {k:<16} {v:<22} {note}")
+    if bad:
+        print(f"\n{bad} part(s) not wired")
+        return 1
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="symon-board")
     ap.add_argument("--board", default=DEFAULT_BOARD)
@@ -425,6 +590,9 @@ def main() -> int:
     p = sub.add_parser("sections"); p.set_defaults(fn=cmd_sections)
     p = sub.add_parser("check"); p.set_defaults(fn=cmd_check)
     p = sub.add_parser("env"); p.add_argument("--allow-stale", action="store_true"); p.set_defaults(fn=cmd_env)
+    p = sub.add_parser("client"); p.add_argument("surface", nargs="?",
+                                                 choices=list(SURFACES) + ["status"], default="status")
+    p.set_defaults(fn=cmd_client)
     p = sub.add_parser("3p"); p.add_argument("state", nargs="?", choices=["on", "off", "status"],
                                              default="status"); p.set_defaults(fn=cmd_3p)
     a = ap.parse_args()
