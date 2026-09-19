@@ -41,6 +41,15 @@ mkdir -p "$GOOD/pkg/source" && git -C "$GOOD/pkg/source" init -q 2>/dev/null \
   && git -C "$GOOD/pkg/source" add -- orig.c >/dev/null 2>&1 \
   && git -C "$GOOD/pkg/source" -c user.email=t@t -c user.name=t commit -qm pristine >/dev/null 2>&1
 
+# Divergence needs two trees, not two files: the fault is the same NAME carrying different
+# bytes in different places. The good fixture is the same name carrying IDENTICAL bytes, which
+# is duplication and deliberately not a failure.
+mkdir -p "$BAD/treeA" "$BAD/treeB" "$GOOD/treeA" "$GOOD/treeB"
+printf '#!/bin/sh\necho version one\n'  > "$BAD/treeA/tool.sh"
+printf '#!/bin/sh\necho version two\n'  > "$BAD/treeB/tool.sh"
+printf '#!/bin/sh\necho same\n'         > "$GOOD/treeA/tool.sh"
+printf '#!/bin/sh\necho same\n'         > "$GOOD/treeB/tool.sh"
+
 pass=0; fail=0
 check() { # check <gate> <fixture> <expect: FAIL|PASS> <extra args...>
   local g=$1 fixture=$2 expect=$3; shift 3
@@ -78,6 +87,8 @@ check claim             "$HERE/gate"        PASS   executable
 # claim fail HERE rather than three steps later inside whatever was built on it.
 check claim             "$WORK/absent"      FAIL   exists
 check claim             "$HERE"             FAIL   file
+check no-divergent-copy "$BAD"              FAIL
+check no-divergent-copy "$GOOD"             PASS
 check licence-stamped   "$WORK"             MISUSE
 # Inside one of the four trees, a directory with no LICENSE is exactly the state this refuses.
 [ -d /mnt/SymonSayDistribute/.bare ] && check licence-stamped /mnt/SymonSayDistribute/.bare FAIL
