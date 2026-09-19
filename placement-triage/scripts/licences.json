@@ -1,0 +1,23 @@
+{
+  "_comment": "SPDX identifier -> obligation class. The class is what decides placement, not the name. Matching is case-insensitive and prefix-based, longest prefix wins, so GPL-3.0-or-later matches before GPL-3.",
+  "permissive": [
+    "MIT", "BSD-2-Clause", "BSD-3-Clause", "BSD-4-Clause", "0BSD", "ISC", "Apache-2.0",
+    "Apache-1.1", "Zlib", "PSF-2.0", "Python-2.0", "PostgreSQL", "X11", "Unlicense",
+    "CC0-1.0", "BSL-1.0", "NCSA", "libpng", "curl", "bzip2", "OpenSSL", "Artistic-2.0",
+    "LicenseRef-SymonSaysLLC-OpenSource-1.0"
+  ],
+  "weak_copyleft": [
+    "LGPL-2.0", "LGPL-2.1", "LGPL-3.0", "MPL-1.1", "MPL-2.0", "EPL-1.0", "EPL-2.0",
+    "CDDL-1.0", "CDDL-1.1", "CPL-1.0", "Ms-RL"
+  ],
+  "strong_copyleft": [
+    "GPL-1.0", "GPL-2.0", "GPL-3.0", "AGPL-3.0", "SSPL-1.0", "OSL-3.0", "EUPL-1.2",
+    "CECILL-2.1", "QPL-1.0", "GFDL-1.3", "CC-BY-SA-4.0"
+  ],
+  "proprietary_ours": [
+    "LicenseRef-SymonSaysLLC-Proprietary-1.0", "FSL-1.1-ALv2"
+  ],
+  "not_a_licence": [
+    "NOASSERTION", "NONE", "UNKNOWN", "Proprietary"
+  ]
+}
