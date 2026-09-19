@@ -43,23 +43,36 @@ tree = ast.parse(text)
 # Only the first was checked, so a flat service passed having examined nothing — the gate
 # reporting PASS because it had found no modules to look at. A check that cannot fail is not
 # a check, and that is the one rule this whole suite is built on.
-caps = set()
+# THREE import forms, all of which this estate actually uses. Each was found by a service
+# passing vacuously:
+#
+#   from . import model                   a package-relative sibling
+#   import board as B                     a flat module beside the service
+#   from symoneural_agents import tools   an absolute package beside the service
+#
+# caps holds (directory, module) so a capability can live one level down.
+caps: set[tuple] = set()
 for n in ast.walk(tree):
     if isinstance(n, ast.ImportFrom) and n.level == 1:
-        caps |= {a.name for a in n.names}
+        caps |= {(pkg, a.name) for a in n.names}
+    elif isinstance(n, ast.ImportFrom) and n.level == 0 and n.module:
+        head = n.module.split(".")[0]
+        d = pkg / head
+        if d.is_dir():
+            caps |= {(d, a.name) for a in n.names}
     elif isinstance(n, ast.Import):
         for a in n.names:
             head = a.name.split(".")[0]
             if (pkg / f"{head}.py").is_file() and head != svc.stem:
-                caps.add(head)
+                caps.add((pkg, head))
 
 if not caps:
     print(f"  no capability module found beside {svc.name} — nothing was checked")
     sys.exit(2)
 
 bad = 0
-for cap in sorted(caps):
-    f = pkg / f"{cap}.py"
+for d, cap in sorted(caps, key=lambda c: (str(c[0]), c[1])):
+    f = d / f"{cap}.py"
     if not f.is_file():
         continue
     m = ast.parse(f.read_text())
