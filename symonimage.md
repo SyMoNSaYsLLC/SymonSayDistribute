@@ -93,6 +93,18 @@ so they are not components of this artifact — the same reasoning that places `
 browser is also a program it runs rather than a library it links. The weights carry their own
 `LICENSE`, `NOTICE` and provenance in `/models/symon-imager/`, placed by `model-store`.
 
+**The ship gate does not corroborate this, and saying so matters.** Its census for v1.0.0 lists
+six components, all PERMISSIVE, all Python: cpython and python3.13-minimal (PSF-2.0), fastapi,
+pydantic and pytest (MIT), uvicorn (BSD-3-Clause). The image runtime appears at no class at
+all. The gate *can* emit `INVOKED_NOT_LINKED` — `board/v1.3.0` carries two, for bash and
+coreutils — but it detects interpreters and Python imports, not a program reached through
+`subprocess` from a path held in an environment variable. So the claim above is reasoned from
+how the code works, not confirmed by the census. Silence from a gate is not agreement from it,
+and a licence claim resting on a gate that never looked is the kind of thing this estate
+records rather than rounds up.
+
+Adjacent and deliberately not built here: a census that reads argv-invoked programs.
+
 ## Testing
 
 18 tests, and most are about refusing, because the one thing this unit must never do is start a
@@ -113,7 +125,10 @@ Tagged `symonimage/v<version>`.
 
 ## Status
 
-Built and tested; **not yet commissioned**. It needs `SYM_IMAGE_TOKEN` provisioned and a port
-registered on the control board before anything can reach it. Until then the capability is
-real and unreachable, which is precisely what this unit was written to stop being true of
-symon-imager.
+Running on 8822 and routed: registered in `/models/control.board`, present in the fabric's
+wiring table (`unknown_on_board()` empty, 12 components routable), and reachable as three
+agent tools — `image_room`, `image_ready`, `image_generate`.
+
+**Not yet commissioned.** `SYM_IMAGE_TOKEN` is unprovisioned, so health answers and every
+other route returns 503 by design. Generating a secret is Garrett's alone (R13), and until he
+does the unit is wired but closed.
