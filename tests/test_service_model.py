@@ -11,7 +11,7 @@ from symoneural_ravencalc import service
 
 C = TestClient(service.app)
 AUTH = {"authorization": "Bearer test-token-not-a-credential"}
-REAL = "/models/symon"
+REAL = "/mnt/models/symon"
 
 
 def has_model():
@@ -27,9 +27,33 @@ def test_every_model_route_exists():
 
 
 def test_the_routes_refuse_without_a_token():
-    r = C.post("/api/ravencalc/model/kv-cache",
-               json={"model_dir": REAL, "context": 1024})
-    assert r.status_code in (401, 403)
+    # The bind address is what makes the token mandatory. Off-loopback here, and restored in a
+    # finally so a failing assert cannot leave the rest of the session bound to 0.0.0.0.
+    before = os.environ.get("SYM_RAVENCALC_HOST")
+    os.environ["SYM_RAVENCALC_HOST"] = "0.0.0.0"
+    try:
+        r = C.post("/api/ravencalc/model/kv-cache",
+                   json={"model_dir": REAL, "context": 1024})
+        assert r.status_code in (401, 403)
+    finally:
+        if before is None:
+            os.environ.pop("SYM_RAVENCALC_HOST", None)
+        else:
+            os.environ["SYM_RAVENCALC_HOST"] = before
+
+
+def test_loopback_needs_no_token(monkeypatch):
+    """The other half of the same contract as the test above.
+
+    On the default loopback bind a token defends only against a caller who already runs code
+    on this host — and can read the token — so a route answers with no token set at all.
+    """
+    monkeypatch.delenv("SYM_RAVENCALC_HOST", raising=False)   # the default bind, not an override
+    monkeypatch.delenv("SYM_RAVENCALC_TOKEN", raising=False)
+    r = C.post("/api/ravencalc/model/gpu-fraction",           # no checkpoint, no AUTH header
+               json={"total_bytes": 1000, "free_bytes": 900, "required_bytes": 100,
+                     "reserve_bytes": 10, "ceiling": 0.9})
+    assert r.status_code == 200
 
 
 def test_a_missing_checkpoint_is_404_not_500():
