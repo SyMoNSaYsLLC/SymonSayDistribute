@@ -81,7 +81,9 @@ Turning admitted requests into one call the engine can take.
 
 ## C. Scheduling and dispatch — `symonpayload/dispatch.py`
 
-**NAMED AND SOURCED, NOT BUILT.** See the note at the end.
+**BUILT** (12 of 13). The sender is injected, so nothing here knows where an engine is —
+in the estate that callable goes through the fabric. `symon-vector-engine` remains unbuilt
+because it is the engine itself, not a component of this unit.
 
 Deciding what runs next, and sending it.
 
@@ -165,11 +167,11 @@ Running the same thing many ways on purpose, and recording what happened.
 |---|---|---|
 | A. Admission | 8 | **Built**, tested |
 | B. Batch formation | 12 | **Built**, tested |
-| C. Scheduling and dispatch | 13 | Named and sourced, not built |
+| C. Scheduling and dispatch | 13 | **Built** (12; the 13th is the engine) |
 | D. Flow control | 8 | **Built**, tested, against a real measurement |
 | E. Residency and buffers | 9 | Named and sourced, not built |
 | F. Sweeps and evaluation | 10 | **Built**, tested |
-| **Total** | **60** | **38 built, 22 named** |
+| **Total** | **60** | **50 built, 10 named** |
 
 ## Why C and E are not built
 
