@@ -75,3 +75,29 @@ or concurrency, a bandwidth of zero, a directory with no tensors, more active ex
 
 This branch cuts its own releases, tagged `ravencalc/v<version>`. Expect many: the calculations
 get adjusted as the estate learns what it actually costs to serve.
+
+## Over HTTP
+
+Thirteen routes on `127.0.0.1:8801`, the port `/models/control.board` assigns to `ravencalc`.
+Health and backends are public; every calculation needs `SYM_RAVENCALC_TOKEN`.
+
+    GET  /api/ravencalc/health                public; answers before anything is configured
+    GET  /api/ravencalc/backends              which computation backends are actually present
+    POST /api/ravencalc/simplify              symbolic simplification
+    POST /api/ravencalc/solve                 solve for a symbol
+    POST /api/ravencalc/precise               arbitrary-precision evaluation
+    POST /api/ravencalc/matrix-solve          linear systems
+    POST /api/ravencalc/integrate             definite and indefinite integration
+
+The model arithmetic is separate because it reads a checkpoint rather than an expression:
+
+    POST /api/ravencalc/model/tensors         shapes and dtypes from the safetensors headers
+    POST /api/ravencalc/model/kv-cache        cache size from num_key_value_heads, not heads
+    POST /api/ravencalc/model/experts         which experts are resident, and what that costs
+    POST /api/ravencalc/model/transfer        page-in time; refuses without a measured bandwidth
+    POST /api/ravencalc/model/budget          what fits, given a card and a context
+    POST /api/ravencalc/model/gpu-fraction    (free - reserve) / total, with no default reserve
+
+None of these carries a default for a quantity that must be measured. A missing bandwidth, a
+missing reserve or a config that does not declare its layer types is a refusal with a reason,
+never a number produced from an assumption — that is the whole point of the unit existing.
