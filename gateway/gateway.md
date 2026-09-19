@@ -227,3 +227,38 @@ non-streaming round trip; serving only SSE fails it. Discovery runs first, so
 §2 before the message probe is even attempted.
 
 Reproduce it with curl before anyone presses Test in the client.
+
+## The identity the gateway establishes
+
+Asked "who are you and what are you running on", this checkpoint answered that it was built by
+another company and ran in that company's data centre. Every clause was false here, and it put
+somebody else's name on the product — which §3.11 exists to prevent.
+
+The cause was not the checkpoint. **Nothing had ever told it who it is:** the gateway injected
+no system message at all. It answered as the thing it was built from because that is the only
+identity it had.
+
+`_apply_identity` prepends one, and the wording is constrained by §3.11 rather than written
+freely. No other company is named — not to claim and not to deny, because negating a name still
+names it; attribution lives in `NOTICE` and `LICENSE` beside the weights, where the licence
+requires it. Hardware is described by **capability**, not brand. The claim about what
+SyMoNeuRaL contributed is lifted from `/models/symon/NOTICE`, which is careful to say the
+composition rather than the weights, and a system prompt is no place to quietly widen that.
+
+It is **prepended, never substituted**. A caller that sends its own system prompt keeps it:
+establishing who is answering does not get to decide what they are for. `SYM_IDENTITY`
+overrides the text, and emptying it says nothing rather than falling back to a default.
+
+## A divergence, measured and closed
+
+The process serving 9001 runs `symoneural_api.gateway` out of `work/runtimes/api/app`, not this
+tree. symonscope reported it: *what is serving is not what is released.*
+
+Measured rather than assumed, the two are the same software. `gateway.py`, `models.py` and
+`worker.py` differ by **one line each — the SPDX header** (`FSL-1.1-ALv2` there, the proprietary
+licence here). `dialect.py` differed by that line plus the identity block, which is why this
+change exists: the fix was live and unshipped.
+
+With it ported, the two `dialect.py` files differ by the licence header and nothing else. The
+divergence was one patch wide, and the useful part of finding that out was learning it was not
+two gateways.

@@ -117,6 +117,44 @@ async def retrieve_model(model_id: str, request: Request) -> JSONResponse:
 # ---------------------------------------------------------------------------
 # POST /v1/messages
 # ---------------------------------------------------------------------------
+IDENTITY_DEFAULT = (
+    'You are symon, served by SyMoNeuRaL. You are reached over a direct connection to the ope'
+    "rator's own machine — there is no cloud between you and them. You run on that machine's "
+    "own hardware: a single 16 GB card, compute capability 12.0. SyMoNeuRaL's contribution is"
+    ' the composition: the store layout, the model cards, the serving runtime and the dialect'
+    '. Answer as symon.'
+)
+
+# ---------------------------------------------------------------- identity
+# Asked "who are you", this model answered "I'm ChatGPT, built by OpenAI, running on OpenAI's
+# cloud infrastructure". Every clause of that was false here and it put another party's name on
+# the product, which Section 3.11 exists to prevent. The cause was not the checkpoint: NOTHING
+# had ever told it who it is. The gateway injected no system message at all.
+#
+# Section 3.11 also shapes the wording. No other company is named — not to claim, not to deny,
+# because negating a name still names it. Attribution lives in NOTICE and LICENSE beside the
+# weights, where the licence requires it. Hardware is described by CAPABILITY, not by brand.
+#
+# It is PREPENDED, never substituted. A caller that sends its own system prompt keeps it: this
+# establishes who is answering, it does not decide what they are for.
+SYM_IDENTITY = os.environ.get("SYM_IDENTITY", IDENTITY_DEFAULT)
+
+
+def _apply_identity(payload: dict) -> None:
+    """Put symon's identity in front of whatever the caller sent, without replacing it."""
+    if not SYM_IDENTITY.strip():
+        return                      # emptied deliberately: say nothing rather than a default
+    sys_block = payload.get("system")
+    line = {"type": "text", "text": SYM_IDENTITY}
+    if sys_block is None:
+        payload["system"] = [line]
+    elif isinstance(sys_block, str):
+        payload["system"] = [line, {"type": "text", "text": sys_block}]
+    elif isinstance(sys_block, list):
+        payload["system"] = [line, *sys_block]
+    # anything else is a shape this dialect does not define; leave the caller's value alone
+
+
 async def _read_payload(request: Request) -> tuple[dict[str, Any] | None, JSONResponse | None]:
     try:
         payload = await request.json()
@@ -217,6 +255,7 @@ async def create_message(request: Request):
     # Per-card defaults fill only what the caller left unset; see models.Sampling.
     card.sampling.apply(payload)
     _normalise_thinking(payload)
+    _apply_identity(payload)
     rid = _request_id(request)
     streaming = bool(payload.get("stream"))
 
