@@ -31,7 +31,14 @@ EPOCH=$(git -C "$SRC" log -1 --format=%ct 2>/dev/null)
 COMMIT=$(git -C "$SRC" rev-parse HEAD 2>/dev/null)
 BRANCH=$(git -C "$SRC" rev-parse --abbrev-ref HEAD 2>/dev/null)
 [ -n "$EPOCH" ] || { echo "$SRC is not a git checkout — refusing to pack an unpinned tree" >&2; exit 2; }
-[ -z "$(git -C "$SRC" status --porcelain)" ] || { echo "$SRC has uncommitted changes — commit first" >&2; exit 2; }
+# What ships is `git archive HEAD`, so UNTRACKED files are irrelevant to the artifact — a
+# __pycache__ beside the scripts changes nothing about what is packed. Only tracked changes
+# matter, because those are edits that exist on disk and not in the commit being shipped.
+# Untracked paths are named rather than ignored, in case one of them was meant to be committed.
+DIRTY=$(git -C "$SRC" status --porcelain --untracked-files=no)
+[ -z "$DIRTY" ] || { echo "$SRC has uncommitted changes to tracked files — commit first" >&2; echo "$DIRTY" | sed 's/^/    /' >&2; exit 2; }
+UNTRACKED=$(git -C "$SRC" ls-files --others --exclude-standard)
+[ -z "$UNTRACKED" ] || { echo "  note: not packed, untracked in $SRC:"; echo "$UNTRACKED" | sed 's/^/          /'; }
 
 TAR="$OUT/$UNIT-$VERSION.tar.gz"
 # git archive takes the content from the COMMIT, so what ships is what is in history, not what
