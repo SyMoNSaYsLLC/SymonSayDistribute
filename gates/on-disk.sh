@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # one-line: proves a path is on a real filesystem with a UUID
+# staged: no — asks whether a LOCATION is real; staged content lives in scratch by design
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # Section 3.1c: "on disk" means Garrett's machine. An agent that cannot name the filesystem UUID

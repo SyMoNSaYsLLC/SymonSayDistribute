@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses anything that looks like a live credential
+# staged: yes — scans content
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # Section 3.2: never print, generate or commit a secret. The gate names the file and the line,

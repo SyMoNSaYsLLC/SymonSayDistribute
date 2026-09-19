@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses pkill --ns, pkill -f and pgrep -f
+# staged: yes — scans content
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # `pkill --ns` signals every process in the root namespace and hard-crashed this host on

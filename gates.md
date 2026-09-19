@@ -26,6 +26,7 @@ misused. `gate --all <path>` runs every gate and reports each.
 | `claim` | a claim that does not hold | section 3.1d, made cheap enough that there is no excuse for skipping it |
 | `no-divergent-copy` | the same tool at several paths with different contents | `ship-gate.py` existed four times across two filesystems, three of them stale — the release gate itself, with no agreement about what it was |
 | `no-predictable-tmp` | a temporary file at a guessable path | `/tmp/.chk.$$.py` was written and then EXECUTED; $$ reads like uniqueness and is a small, reused, publicly visible number |
+| `endpoints-current` | a capability that no endpoint reaches | ravencalc shipped v1.0.0 with the whole model arithmetic and not one route touching it — unreachable over HTTP for a full release |
 
 ## Why it is here and not in the other tree
 

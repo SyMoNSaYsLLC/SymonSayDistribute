@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses an exit code read through a pipeline
+# staged: yes — scans shell content
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # Section 3.1: exit codes are checked directly, never through a pipeline. `cmd | tail; rc=$?`

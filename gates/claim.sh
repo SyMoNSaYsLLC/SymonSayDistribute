@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # one-line: tests a claim about a path before anything is built on it
+# staged: no — takes a claim to test; there is none to infer from a commit
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # Section 3.1d, test before deciding. A claim carried forward from a summary, a report or an

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses material dated August 2026
+# staged: yes — scans content and mtimes
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # gate-allow-file: no-august — this file is the detector; it names the date to refuse it.

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses model weights, any format, any size
+# staged: yes — scans content
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # Weights never enter git. Not compressed, not sharded, not "just this once" — a repository that

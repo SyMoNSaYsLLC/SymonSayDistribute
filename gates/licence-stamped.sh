@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # one-line: every branch carries the LICENSE its tree requires
+# staged: no — asks which of the four trees a directory is in
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # The four trees carry two licences between them, and which tree a thing sits in is the whole

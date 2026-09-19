@@ -31,15 +31,25 @@ set -o pipefail
 GATE_HOME=__GATE_HOME__
 [ -x "$GATE_HOME/gate" ] || exit 0
 STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+skipped=""
 [ -n "$STAGED" ] || exit 0
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/pre-commit-gate-XXXXXX") || exit 0
 trap 'rm -rf "$TMP"' EXIT
 git checkout-index -a -f --prefix="$TMP/" 2>/dev/null || exit 0
 rc=0
-for g in no-secret no-weights no-august no-blanket-add forbidden-signal; do
+# EVERY gate, not a chosen five. The first version named five, which meant seven gates were
+# installed, reported as installed, and never fired on a commit — the exact shape of failure
+# the gates exist to prevent. A gate that does not apply to staged content exits 2 and is
+# skipped by name, which is visible; being left out of a list is not.
+# Each gate declares whether it applies to STAGED CONTENT, in its own header. A hardcoded
+# list here is how seven gates were installed, reported as installed, and never fired. A
+# declaration in the gate is visible to anyone reading the gate; a list somewhere else is not.
+for g in $(cd "$GATE_HOME/gates" && grep -l '^# staged: yes' *.sh 2>/dev/null | sed 's/\.sh$//'); do
   out=$("$GATE_HOME/gate" "$g" "$TMP" 2>&1); grc=$?
-  if [ $grc -eq 1 ]; then echo "commit refused by gate '$g':"; echo "$out" | sed 's/^/  /'; rc=1; fi
+  if [ $grc -eq 1 ]; then echo "commit refused by gate '$g':"; echo "$out" | sed 's/^/  /'; rc=1
+  elif [ $grc -eq 2 ]; then skipped="$skipped $g"; fi
 done
+[ -z "$skipped" ] || echo "gates not applicable to this change:$skipped"
 [ $rc -eq 0 ] || echo "
 Nothing was committed. Fix the above, or commit with --no-verify if this is a
 deliberate exception you can name."

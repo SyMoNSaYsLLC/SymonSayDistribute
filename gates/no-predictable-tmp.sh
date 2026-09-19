@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # one-line: refuses a temporary file at a guessable path
+# staged: yes — scans content
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 #
 # A temporary file must be created with mktemp. Writing to a path a script composes itself —
