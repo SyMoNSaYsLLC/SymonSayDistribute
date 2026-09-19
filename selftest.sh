@@ -20,7 +20,11 @@ BAD="$WORK/bad"; GOOD="$WORK/good"; mkdir -p "$BAD" "$GOOD"
 # ------------------------------------------------------------------ fixtures
 printf '#!/bin/sh\ngit add -A\n'                              > "$BAD/blanket.sh"
 printf '#!/bin/sh\ngit add -- one.txt two.txt\n'              > "$GOOD/explicit.sh"
-printf 'token = "sk-ant-EXAMPLE0NOT0A0REAL0KEY000000"\n'      > "$BAD/creds.py"  # gate-allow: no-secret — synthetic fixture, written to a temp dir only
+# Assembled at run time from harmless parts. Writing the literal into this file would put a
+# credential-SHAPED string into the repository, and every scanner downstream — ours, the ship
+# gate, GitHub's — is right to flag that. A fixture is not worth an exemption in every tool
+# that will ever read this tree, so the shape exists only in the temporary file.
+printf 'token = "%s-%s-%s"\n' sk ant EXAMPLE0NOT0A0REAL0KEY000000 > "$BAD/creds.py"  # gate-allow: no-secret — synthetic fixture, written to a temp dir only
 printf 'token = os.environ["SYM_CHAT_TOKEN"]\n'               > "$GOOD/creds.py"
 : > "$BAD/model.safetensors"
 printf 'weights live outside git\n'                           > "$GOOD/README.md"
