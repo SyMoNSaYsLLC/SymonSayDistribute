@@ -2,10 +2,17 @@
 # Copyright 2026 SymonSaysLLC
 """Service tests. The unit is closed until configured, and says which knob is missing."""
 import importlib
+import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
-TOKEN = "test-token-not-a-credential"
+# Generated per run rather than written down. A literal here failed the estate's own secret
+# gate (pattern generic_assignment) and the gate was right to fail it: nothing reading this
+# file can tell a placeholder from a live credential, and a gate that takes the author's word
+# for which is which has stopped being a gate. Deriving it means there is no value in the
+# repository to be wrong about.
+TOKEN = uuid.uuid4().hex
 
 
 @pytest.fixture
