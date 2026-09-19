@@ -136,12 +136,30 @@ def test_nothing_in_the_client_is_specific_to_one_browser():
 
 # --- over http ----------------------------------------------------------------------------
 def test_health_is_public_and_the_rest_is_closed(monkeypatch):
+    # Off-loopback is what makes the token mandatory, so the bind address is set before the
+    # reload: a unit that becomes reachable through a config change must not become public
+    # through that same change.
+    monkeypatch.setenv("SYM_WEB_HOST", "0.0.0.0")
     monkeypatch.delenv("SYM_WEB_TOKEN", raising=False)
     import service
     importlib.reload(service)
     c = TestClient(service.app)
     assert c.get("/api/symonweb/health").status_code == 200
     assert c.get("/api/symonweb/drivers").status_code == 503
+
+
+def test_loopback_needs_no_token(monkeypatch):
+    """The other half of the same contract as the test above.
+
+    On the default loopback bind a token defends only against a caller who already runs code
+    on this host — and can read the token — so a closed route answers unauthenticated.
+    """
+    monkeypatch.delenv("SYM_WEB_HOST", raising=False)      # the default bind, not an override
+    monkeypatch.delenv("SYM_WEB_TOKEN", raising=False)
+    import service
+    importlib.reload(service)
+    c = TestClient(service.app)
+    assert c.get("/api/symonweb/drivers").status_code == 200
 
 
 def test_fetching_the_estates_own_board_is_403_with_the_reason(client):
