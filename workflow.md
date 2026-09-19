@@ -50,6 +50,32 @@ environment here and cannot be fetched, so a change could be committed and not s
 options were to publish wheels that no longer matched their source, or to build them
 ourselves; this is the latter, narrow enough to read in one sitting.
 
+
+## start-estate — bringing the estate back after a reboot
+
+    workflow/start-estate.sh [--dry-run]
+
+The host rebooted on 2026-09-19 at 08:05 and every service was gone: eleven units, the gateway
+and the engine. Nothing brought them back, because nothing ever had — each had been started by
+hand in a terminal and inherited that terminal's lifetime.
+
+The second half of that failure is the instructive one. `/tmp` is tmpfs on this host, so the
+same reboot destroyed the only copies of the image unit's binaries. They survived because they
+had been copied to durable storage hours earlier for an unrelated reason. Nothing about "start
+it by hand" survives a power cut, and the estate had no answer to one.
+
+**Ports come from `/models/control.board`**, not from a list in this script. That file has been
+called the port authority in five documents; the fabric reads it and so does this. A port
+changed there changes here.
+
+**Four units are skipped, each with its reason printed** — the engine (its launcher owns the
+fit ladder), the gateway (served from a divergent tree), the web interface (not a python
+service) and the control plane (R14). A name missing from a launcher with no reason is
+indistinguishable from an oversight, so the reasons are output rather than comments.
+
+**`setsid`, not just `nohup`.** A background job still shares the session and dies when the
+terminal closes. That is exactly how these died the first time.
+
 ## Releases
 
 A release belongs to a runtime and its tag names one:
