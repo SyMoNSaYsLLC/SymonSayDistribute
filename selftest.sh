@@ -50,6 +50,9 @@ printf '#!/bin/sh\necho version two\n'  > "$BAD/treeB/tool.sh"
 printf '#!/bin/sh\necho same\n'         > "$GOOD/treeA/tool.sh"
 printf '#!/bin/sh\necho same\n'         > "$GOOD/treeB/tool.sh"
 
+printf '#!/bin/sh\ncurl -s x > /tmp/.m.$$\n'          > "$BAD/tmpfile.sh"   # gate-allow: no-predictable-tmp — synthetic fixture
+printf '#!/bin/sh\nf=$(mktemp) && curl -s x > "$f"\n' > "$GOOD/tmpfile.sh"
+
 pass=0; fail=0
 check() { # check <gate> <fixture> <expect: FAIL|PASS> <extra args...>
   local g=$1 fixture=$2 expect=$3; shift 3
@@ -87,6 +90,8 @@ check claim             "$HERE/gate"        PASS   executable
 # claim fail HERE rather than three steps later inside whatever was built on it.
 check claim             "$WORK/absent"      FAIL   exists
 check claim             "$HERE"             FAIL   file
+check no-predictable-tmp "$BAD/tmpfile.sh"  FAIL
+check no-predictable-tmp "$GOOD/tmpfile.sh" PASS
 check no-divergent-copy "$BAD"              FAIL
 check no-divergent-copy "$GOOD"             PASS
 check licence-stamped   "$WORK"             MISUSE
