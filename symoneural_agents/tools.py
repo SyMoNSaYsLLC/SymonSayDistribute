@@ -11,6 +11,14 @@ the refusal. A model never told is simply working with a smaller set.
 """
 from __future__ import annotations
 
+# Reached through the routes named below rather than as routes of their own.
+NOT_EXPOSED = {
+    "Registry": "a class; the tool set is routed as GET /api/agents/tools",
+    "Grant": "a class; a grant is made per run by POST /api/agents/runs",
+    "Tool": "a record type",
+    "ToolError": "an exception type",
+}
+
 import json
 from dataclasses import dataclass, field
 from typing import Any, Callable

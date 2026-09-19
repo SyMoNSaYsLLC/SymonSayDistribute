@@ -30,6 +30,15 @@ same in a report.
 """
 from __future__ import annotations
 
+# Reached through the routes named below rather than as routes of their own.
+NOT_EXPOSED = {
+    "run_agent": "driven by the registry; a run is started by POST /api/agents/runs",
+    "Bounds": "an exception type",
+    "Run": "a record type",
+    "Step": "a record type",
+    "Entry": "a record type",
+}
+
 import json, time, uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable
@@ -87,7 +96,7 @@ class Run:
         }
 
 
-def run_agent(name: str, task: str, grant: Grant, send: Callable[[dict], dict], *,
+def run_agent(name: str, task: str, grant: Grant, send: Callable[..., dict], *,
               model: str, max_steps: int, max_seconds: float,
               stop: Callable[[], bool] | None = None,
               on_step: Callable[[Run, Step], None] | None = None) -> Run:
@@ -96,6 +105,10 @@ def run_agent(name: str, task: str, grant: Grant, send: Callable[[dict], dict], 
     `send` takes a Messages-dialect payload and returns the parsed response. It is injected so
     the loop can be tested without a model and without a network — the loop's correctness is
     about transcript shape and bounds, not about what any particular model says.
+
+    If `send` accepts a `timeout` keyword it is given the remaining budget, so the bound
+    reaches inside a turn rather than only between them. One that does not is called plainly,
+    and the between-step check catches it one turn later.
     """
     if max_steps < 1:
         raise Bounds("max_steps is at least 1 — a run with no steps cannot return")
@@ -117,8 +130,27 @@ def run_agent(name: str, task: str, grant: Grant, send: Callable[[dict], dict], 
                 break
 
             t0 = time.time()
-            reply = send({"model": model, "max_tokens": 4096, "messages": messages,
-                          "tools": grant.declare()})
+            # THE BOUND MUST REACH INSIDE THE TURN.
+            #
+            # Checking elapsed time only between steps means one slow turn runs as long as it
+            # likes: a run bounded at 3 seconds was still going at 12, because the bound was
+            # never consulted while the request was in flight. A bound that only applies where
+            # the work is not happening is not a bound.
+            #
+            # The remaining budget is handed to the caller's send so the request itself can be
+            # cut. A send that ignores it keeps the old behaviour and the between-step check
+            # still catches it on the next pass.
+            remaining = max_seconds - run.elapsed
+            if remaining <= 0:
+                run.state = "exceeded"
+                run.why = f"no time left of the {max_seconds:.0f}s bound before step {n}"
+                break
+            payload = {"model": model, "max_tokens": 4096, "messages": messages,
+                       "tools": grant.declare()}
+            try:
+                reply = send(payload, timeout=remaining)      # type: ignore[call-arg]
+            except TypeError:
+                reply = send(payload)
             blocks = reply.get("content") or []
             calls = [b for b in blocks if isinstance(b, dict) and b.get("type") == "tool_use"]
 

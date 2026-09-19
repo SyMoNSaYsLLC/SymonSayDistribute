@@ -174,3 +174,25 @@ def test_whitespace_is_not_an_answer():
                   lambda p: {"content": [{"type": "text", "text": "   \n  "}]},
                   model="m", max_steps=3, max_seconds=10)
     assert r.state == "empty"
+
+
+def test_the_time_bound_reaches_inside_a_turn():
+    """A run bounded at 3 seconds was still going at 12, because elapsed time was only checked
+    BETWEEN steps and one slow turn ran as long as it liked."""
+    seen = {}
+    def slow(payload, timeout=None):
+        seen["timeout"] = timeout
+        time.sleep(0.05)
+        return {"content": [{"type": "tool_use", "id": "x", "name": "echo", "input": {}}]}
+    r = run_agent("a", "go", reg().grant(["echo"]), slow,
+                  model="m", max_steps=100, max_seconds=0.2)
+    assert r.state == "exceeded"
+    assert seen["timeout"] is not None and seen["timeout"] <= 0.2, \
+        "the remaining budget was not handed to send"
+
+
+def test_a_send_that_ignores_the_timeout_still_works():
+    plain = lambda payload: {"content": [{"type": "text", "text": "ok"}]}
+    r = run_agent("a", "go", reg().grant(["echo"]), plain,
+                  model="m", max_steps=2, max_seconds=5)
+    assert r.state == "returned" and r.answer == "ok"
