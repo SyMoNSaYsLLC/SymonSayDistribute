@@ -37,6 +37,7 @@ ENDPOINTS = {
     "ravencalc": os.environ.get("SYM_RAVENCALC_URL", "http://127.0.0.1:8801"),
     "gateway":   os.environ.get("SYM_GW_URL",        "http://127.0.0.1:9001"),
     "store":     os.environ.get("SYM_STORE_URL",     "http://127.0.0.1:8812"),
+    "symonscope": os.environ.get("SYM_SCOPE_URL",    "http://127.0.0.1:8815"),
 }
 
 # The token each one wants, by NAME. Read at call time, never passed as an argument.
@@ -45,6 +46,7 @@ TOKEN_ENV = {
     "ravencalc": "SYM_RAVENCALC_TOKEN",
     "gateway":   None,          # the gateway reads a key FILE, named on the board
     "store":     "SYM_STORE_TOKEN",
+    "symonscope": "SYM_SCOPE_TOKEN",
 }
 
 
@@ -91,6 +93,9 @@ def _call(component: str, path: str, method: str = "GET", body: dict | None = No
 # They are still enumerable: GET /api/agents/connectors lists every one with its component,
 # endpoint and token variable, and whether the far end is answering.
 NOT_EXPOSED = {
+    "estate_survey":  "granted as a tool; enumerated by GET /api/agents/connectors",
+    "estate_layers":  "granted as a tool; enumerated by GET /api/agents/connectors",
+    "estate_live":    "granted as a tool; enumerated by GET /api/agents/connectors",
     "board_settings": "granted as a tool; enumerated by GET /api/agents/connectors",
     "board_status":   "granted as a tool; enumerated by GET /api/agents/connectors",
     "board_check":    "granted as a tool; enumerated by GET /api/agents/connectors",
@@ -143,6 +148,29 @@ def list_models(a: dict) -> Any:
     return _call("gateway", "/v1/models")
 
 
+def estate_survey(a: dict) -> Any:
+    """What this estate is, read from disk: units, subcomponents, edges, layers, live state.
+
+    One call rather than six, deliberately. A question a model has to know the shape of in
+    advance is a question it will not ask, and "what is in this estate" should not require
+    knowing which routes to stitch together.
+    """
+    tree = a.get("tree", "SymonSayDistribute")
+    return _call("symonscope", f"/api/symonscope/survey?tree={tree}", timeout=60.0)
+
+
+def estate_layers(a: dict) -> Any:
+    """Which component rests on which, derived from real dependencies rather than declared."""
+    tree = a.get("tree", "SymonSayDistribute")
+    return _call("symonscope", f"/api/symonscope/layers?tree={tree}", timeout=60.0)
+
+
+def estate_live(a: dict) -> Any:
+    """What is running against what is declared, with every disagreement named."""
+    tree = a.get("tree", "SymonSayDistribute")
+    return _call("symonscope", f"/api/symonscope/live?tree={tree}", timeout=60.0)
+
+
 CONNECTORS: list[Tool] = [
     Tool("board_settings", "Every configured setting in the estate, or one section. "
          "Optional argument: section.",
@@ -167,6 +195,26 @@ CONNECTORS: list[Tool] = [
           "required": ["model_dir", "context", "vram_bytes"]}, model_budget),
     Tool("list_models", "The model rows this estate offers.",
          {"type": "object", "properties": {}}, list_models),
+    Tool("estate_survey", "What this estate actually is, read from disk right now: every "
+         "component, the components inside them, what depends on what with the file and line "
+         "proving it, the layers derived from those dependencies, and what is running against "
+         "what is declared. Use this for any question about what exists, what is built, what "
+         "is wired to what, or what is running — it is faster and more current than reasoning "
+         "from memory, and it cannot go stale.",
+         {"type": "object", "properties": {"tree": {"type": "string",
+          "description": "one of SymonSayDistribute, SymonSaySource, SymonSayOpen, SymonSayOSS; "
+                         "defaults to SymonSayDistribute"}}}, estate_survey),
+    Tool("estate_layers", "Which components rest on which, derived from real dependency edges "
+         "rather than from a written-down list. Reports cycles instead of hiding them.",
+         {"type": "object", "properties": {"tree": {"type": "string",
+          "description": "one of SymonSayDistribute, SymonSaySource, SymonSayOpen, SymonSayOSS; "
+                         "defaults to SymonSayDistribute"}}}, estate_layers),
+    Tool("estate_live", "What is listening right now against what each component declares, "
+         "with every disagreement named — a declared port with nothing on it, a port running "
+         "from the wrong tree, a port nothing claims.",
+         {"type": "object", "properties": {"tree": {"type": "string",
+          "description": "one of SymonSayDistribute, SymonSaySource, SymonSayOpen, SymonSayOSS; "
+                         "defaults to SymonSayDistribute"}}}, estate_live),
 ]
 
 
@@ -177,6 +225,8 @@ def connectors() -> list[dict]:
         "board_settings": "board", "board_status": "board", "board_check": "board",
         "model_kv_cache": "ravencalc", "model_budget": "ravencalc",
         "list_models": "gateway",
+        "estate_survey": "symonscope", "estate_layers": "symonscope",
+        "estate_live": "symonscope",
     }
     return [{"tool": t.name, "component": by_tool.get(t.name, "?"),
              "endpoint": ENDPOINTS.get(by_tool.get(t.name, ""), ""),
@@ -191,7 +241,8 @@ def reachable() -> list[dict]:
     out = []
     for name, base in ENDPOINTS.items():
         path = {"gateway": "/health", "board": "/api/board/health",
-                "ravencalc": "/api/ravencalc/health", "store": "/api/store/health"}.get(name, "/health")
+                "ravencalc": "/api/ravencalc/health", "store": "/api/store/health",
+                "symonscope": "/api/symonscope/health"}.get(name, "/health")
         try:
             with urllib.request.urlopen(base.rstrip("/") + path, timeout=4) as r:
                 out.append({"component": name, "endpoint": base, "up": r.status == 200,
