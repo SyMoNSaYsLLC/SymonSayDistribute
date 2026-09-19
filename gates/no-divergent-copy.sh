@@ -25,7 +25,16 @@ for p in "$@"; do [ -e "$p" ] || { echo "no such path: $p" >&2; exit 2; }; done
 # Names that are structurally per-package rather than a tool. `__init__.py` differs in every
 # Python package by design; comparing them reports seven "divergences" that are simply seven
 # different packages, and buries the real finding.
-SKIP_NAMES='^(__init__\.py|__main__\.py|conftest\.py|setup\.py|_version\.py)$'
+# Names that are a ROLE rather than a tool. Every runtime has its own service.py for the
+# same reason every package has its own __init__.py: the filename says what the file is FOR,
+# not which file it is. Comparing them reports the convention as drift and buries the real
+# finding — which is what happened the moment a second runtime grew an HTTP surface.
+#
+# The line is drawn at names a package is STRUCTURALLY REQUIRED to have — an entry point, a
+# test-runner hook, a package marker. Domain modules stay compared, deliberately: models.py,
+# utils.py, config.py are where real drift hides, and the gateway's models.py is exactly where
+# a divergence was found earlier today. Excluding them for tidiness would have hidden it.
+SKIP_NAMES='^(__init__|__main__|conftest|setup|_version|service|main|app|cli|server|test_.*)\.(py|ts|tsx|sh)$'
 
 LIST=$(mktemp) || exit 2
 trap 'rm -f "$LIST" "$LIST.g"' EXIT

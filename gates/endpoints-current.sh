@@ -35,11 +35,27 @@ svc, pkg = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 text = svc.read_text()
 tree = ast.parse(text)
 
-# the capability modules this service imports from its own package
+# The capability modules this service imports. BOTH forms count:
+#
+#   from . import model        a package layout
+#   import board as B          a flat layout, a sibling module in the same directory
+#
+# Only the first was checked, so a flat service passed having examined nothing — the gate
+# reporting PASS because it had found no modules to look at. A check that cannot fail is not
+# a check, and that is the one rule this whole suite is built on.
 caps = set()
 for n in ast.walk(tree):
     if isinstance(n, ast.ImportFrom) and n.level == 1:
         caps |= {a.name for a in n.names}
+    elif isinstance(n, ast.Import):
+        for a in n.names:
+            head = a.name.split(".")[0]
+            if (pkg / f"{head}.py").is_file() and head != svc.stem:
+                caps.add(head)
+
+if not caps:
+    print(f"  no capability module found beside {svc.name} — nothing was checked")
+    sys.exit(2)
 
 bad = 0
 for cap in sorted(caps):
