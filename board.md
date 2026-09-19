@@ -91,7 +91,8 @@ opening up when that variable is unset — an unconfigured board is closed, not 
     GET  /api/board/settings                  every setting with the tree that owns it
     GET  /api/board/live                      the values read back from running things
     GET  /api/board/diff                      where live disagrees with the file on disk
-    GET  /api/board/check                     the refusals below, run as one call
+    GET  /api/board/check                     every path exists, every port is a port,
+                                              nothing is still marked STALE
     GET  /api/board/client                    which surface currently holds the credential
     POST /api/board/client/{surface}          move the credential between web and the client
 
