@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
 """The store surface. What matters is that it never claims a model is sound without checking."""
-import json, os, pytest
+import contextlib, json, os, pytest
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient
 
@@ -10,7 +10,22 @@ from store import inspect as S
 
 C = TestClient(service.app)
 AUTH = {"authorization": "Bearer test-token-not-a-credential"}
-REAL = os.path.isdir("/models/symon")
+REAL = os.path.isdir("/mnt/models/symon")
+
+
+@contextlib.contextmanager
+def _bound(host):
+    """Bind the unit to `host` for the block. The guard reads SYM_STORE_HOST per request, so
+    the bind address is what decides whether a token is demanded at all."""
+    saved = os.environ.get("SYM_STORE_HOST")
+    os.environ["SYM_STORE_HOST"] = host
+    try:
+        yield
+    finally:
+        if saved is None:
+            os.environ.pop("SYM_STORE_HOST", None)
+        else:
+            os.environ["SYM_STORE_HOST"] = saved
 
 
 def test_health_is_public():
@@ -18,14 +33,27 @@ def test_health_is_public():
 
 
 def test_everything_else_needs_a_credential():
-    for p in ("/api/store/where", "/api/store/models"):
-        assert C.get(p).status_code in (401, 403), p
+    with _bound("0.0.0.0"):          # off-loopback: the token is what stands between them
+        for p in ("/api/store/where", "/api/store/models"):
+            assert C.get(p).status_code in (401, 403), p
 
 
 def test_unconfigured_fails_closed():
     saved = os.environ.pop("SYM_STORE_TOKEN")
     try:
-        assert C.get("/api/store/where", headers=AUTH).status_code == 503
+        with _bound("0.0.0.0"):      # reachable off this host, and no token provisioned
+            assert C.get("/api/store/where", headers=AUTH).status_code == 503
+    finally:
+        os.environ["SYM_STORE_TOKEN"] = saved
+
+
+def test_loopback_needs_no_token():
+    """On a loopback bind every route answers with no token at all, by design: a token there
+    defends only against a caller who already has this host, and so can already read the token."""
+    saved = os.environ.pop("SYM_STORE_TOKEN")
+    try:
+        with _bound("127.0.0.1"):
+            assert C.get("/api/store/where").status_code == 200
     finally:
         os.environ["SYM_STORE_TOKEN"] = saved
 

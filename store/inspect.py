@@ -42,7 +42,7 @@ class StoreError(Exception):
 
 
 def store_root() -> Path:
-    return Path(os.environ.get("SYM_MODELS_DIR", "/models"))
+    return Path(os.environ.get("SYM_MODELS_DIR", "/mnt/models"))
 
 
 def _sh(*a: str) -> str:
