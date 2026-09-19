@@ -225,9 +225,13 @@ def prospect(name: str, sources: list[str], alternatives_searched: str) -> dict:
 
     unknown = [c for c in classes if c[0] == "unknown"]
     if unknown:
-        return {"licence": "undecided", "repository": "NOT YET A PROSPECT",
-                "why": ("a source was named without its licence. Write it as "
-                        "<source>@<SPDX-id> so the classification is read rather than assumed"),
+        missing = [u for u in unknown if "@" not in u[1]]
+        why = ("a source was named without its licence. Write it as <source>@<SPDX-id> so the "
+               "classification is read rather than assumed") if missing else (
+              "a source named a licence this table does not recognise. An SPDX id it cannot "
+              "classify is not a permissive default — check the spelling against the table, or "
+              "add the licence to it with its class, but do not proceed on an unread id")
+        return {"licence": "undecided", "repository": "NOT YET A PROSPECT", "why": why,
                 "evidence": [f"{s}: {w}" for _, s, w in unknown], "confidence": "incomplete"}
 
     copyleft = [c for c in classes if c[0] in ("strong_copyleft", "weak_copyleft")]
@@ -308,10 +312,17 @@ def main() -> int:
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args()
     if a.sources is not None or not a.paths:
-        v = prospect(a.name or 'prospect', a.sources or [], a.alternatives)
+        # `triage.py prospect <name> --sources ...` reads naturally and was being swallowed:
+        # both words landed in `paths` and the report said "(unnamed)". A placement record that
+        # does not name what was placed is not a record.
+        words = [str(x) for x in a.paths]
+        if words and words[0] == "prospect":
+            words = words[1:]
+        pname = a.name or (words[0] if words else None)
+        v = prospect(pname or 'prospect', a.sources or [], a.alternatives)
         if a.json:
-            print(json.dumps(v, indent=1)); return 0 if v['repository'] != 'NOT YET A PROSPECT' else 2
-        print(f"prospect  {a.name or '(unnamed)'}")
+            print(json.dumps({"name": pname, **v}, indent=1)); return 0 if v['repository'] != 'NOT YET A PROSPECT' else 2
+        print(f"prospect  {pname or '(unnamed)'}")
         print(f"  verdict   {v['repository']}")
         print(f"  licence   {v['licence']}")
         print(f"  why       {v['why']}")
