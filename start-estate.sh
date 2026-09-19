@@ -30,7 +30,7 @@
 # takes it. That is how these died the first time.
 set -o pipefail
 
-BOARD=${SYM_BOARD_FILE:-/models/control.board}
+BOARD=${SYM_BOARD_FILE:-/mnt/models/control.board}
 TREES=${SYM_TREES:-/mnt/SymonSayDistribute}
 LOGS=${SYM_RUN_DIR:-$HOME/symoneural-run}/logs
 DRY=0
