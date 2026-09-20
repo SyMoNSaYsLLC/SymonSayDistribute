@@ -114,3 +114,12 @@ workflow/install-from-release.sh --runtime symoneural-learn
 
 The index of runtimes and branches is on `main`. Each runtime branch carries its own
 documentation; this branch describes only how one gets released.
+
+**The chain ends here, and §3.7 asks why.** This worktree has no directories below it —
+every file above is a script at the branch root — so there is no document underneath this
+one to link to. The onward step is not a directory at all: it is another *branch*, checked
+out as its own worktree beside this one, with its own root document. `main` holds the index
+of those. A branch boundary is where the filesystem chain stops, because a worktree's
+documents are laid out per branch (§3.1a) and nothing under `/mnt/SymonSayDistribute/workflow`
+can name a path inside `/mnt/SymonSayDistribute/main` that survives the layout being
+recreated on another host.
