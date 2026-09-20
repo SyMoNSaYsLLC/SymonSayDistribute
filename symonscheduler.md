@@ -127,3 +127,16 @@ Tagged `symonscheduler/v<version>`.
 ## Status
 
 Built and tested. Wired on 8831. `symonloop` is the next component and depends on this one.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonscheduler`](symonscheduler/symonscheduler.md) | the capability this unit provides — `cadence.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonscheduler`](symonscheduler/symonscheduler.md), [`tests`](tests/tests.md).
