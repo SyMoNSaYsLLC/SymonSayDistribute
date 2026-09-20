@@ -110,3 +110,16 @@ line number, an environment that is not one. And one that guards the design: no 
 ## Releases
 
 Tagged `symonlora/v<version>`.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonlora`](symonlora/symonlora.md) | the capability this unit provides — `dataset.py`, `plan.py`, `prereq.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonlora`](symonlora/symonlora.md), [`tests`](tests/tests.md).
