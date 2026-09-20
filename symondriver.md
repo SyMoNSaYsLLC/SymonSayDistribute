@@ -216,7 +216,18 @@ Tagged `symondriver/v<version>`.
 control board, and no component consumes it. `SYM_DRIVER_TOKEN` is unprovisioned, which on the
 loopback default is not a blocker — the unit answers every route without one.
 
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symondriver`](symondriver/symondriver.md) | the capability this unit provides — `driver.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
 ## Where this leads
+
+Onward, in the order the code runs: [`symondriver`](symondriver/symondriver.md), [`tests`](tests/tests.md).
 
 The flow continues at [symonprobe](../symonprobe/symonprobe.md), and the split between the two
 is deliberate: this unit answers what the **driver software** is and whether its four sources
