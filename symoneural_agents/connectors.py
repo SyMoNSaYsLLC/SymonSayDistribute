@@ -156,6 +156,10 @@ NOT_EXPOSED = {
     "targets_buildable":"granted as a tool; enumerated by GET /api/agents/connectors",
     "build_ready":     "granted as a tool; enumerated by GET /api/agents/connectors",
     "find_permissive": "granted as a tool; enumerated by GET /api/agents/connectors",
+    "hardware_inventory":"granted as a tool; enumerated by GET /api/agents/connectors",
+    "hardware_health":  "granted as a tool; enumerated by GET /api/agents/connectors",
+    "hardware_network": "granted as a tool; enumerated by GET /api/agents/connectors",
+    "hardware_owned_by":"granted as a tool; enumerated by GET /api/agents/connectors",
     "web_fetch":      "granted as a tool; enumerated by GET /api/agents/connectors",
     "web_browse":     "granted as a tool; enumerated by GET /api/agents/connectors",
     "estate_survey":  "granted as a tool; enumerated by GET /api/agents/connectors",
@@ -499,6 +503,79 @@ def find_permissive(a: dict) -> Any:
                  timeout=120.0)
 
 
+# ------------------------------------------------------------------------------ symondevice
+#
+# THE MACHINE ITSELF, as distinct from the card. symonprobe answers "will this build run on the
+# accelerator"; these answer "what is in this box at all" — the CPU, the memory, every block
+# device, the whole PCI and USB topology, link state, sensors, and which classes of hardware no
+# component of this estate owns.
+#
+# NO MAC ADDRESS AND NO SERIAL NUMBER COMES BACK THROUGH HERE, and nothing here filters for
+# that. The withholding is structural at the far end: symondevice never emits one, names what
+# it withheld on the same response, and has tests that can fail. A filter on this side would
+# imply the component could not be trusted and would hide the fact that it can.
+_INVENTORY_PARTS = ("cpu", "memory", "storage", "pci", "usb")
+
+
+def hardware_inventory(a: dict) -> Any:
+    """What is physically in this machine. One part, or all five.
+
+    A part that fails comes back as an error BESIDE the parts that answered, the same shape
+    `pins_drifted` uses. A sysfs directory this kernel does not publish should cost the reader
+    that one part, not the entire inventory.
+    """
+    part = (a.get("part") or "").strip().lower()
+    if part and part not in _INVENTORY_PARTS:
+        raise ToolError(f"{part!r} is not a hardware part. One of: {', '.join(_INVENTORY_PARTS)}")
+    out: dict[str, Any] = {}
+    for p in ((part,) if part else _INVENTORY_PARTS):
+        try:
+            out[p] = _call("symondevice", f"/api/symondevice/{p}", timeout=60.0)
+        except ToolError as e:
+            out[p] = {"error": str(e)}
+    return out
+
+
+def hardware_health(a: dict) -> Any:
+    """What the machine is doing right now: temperatures, fans, voltages and power supplies.
+
+    Two routes because they are one question — a thermal reading is read in the light of what
+    is supplying the power, and fetching them separately invites reading one without the other.
+
+    Each answer carries its own evidence block naming any reading that could not be taken. That
+    matters more than it sounds: a response of 23 sensor readings that did not say 24 were
+    attempted is indistinguishable from a host with 23 sensors.
+    """
+    out: dict[str, Any] = {}
+    for p in ("sensors", "power"):
+        try:
+            out[p] = _call("symondevice", f"/api/symondevice/{p}", timeout=60.0)
+        except ToolError as e:
+            out[p] = {"error": str(e)}
+    return out
+
+
+def hardware_network(a: dict) -> Any:
+    """Interfaces, link state, driver and negotiated speed. The hardware address is not returned.
+
+    `has_mac` says an address exists and `mac_oui` gives the three octets that name a
+    registrant rather than a machine. The remaining octets never leave the component.
+    """
+    return _call("symondevice", "/api/symondevice/network", timeout=30.0)
+
+
+def hardware_owned_by(a: dict) -> Any:
+    """Which component covers each class of hardware on this host, and which classes nothing does.
+
+    The one tool here whose answer changes when a COMPONENT is written rather than when a cable
+    is moved. It keeps two absences apart that look alike and are not: `unbound` is a device no
+    DRIVER claimed; `unowned_classes` is a device a driver owns that no component of this
+    estate is responsible for. `full_coverage` is expected to be false — a coverage map that
+    never finds a gap has stopped being a map and become a reassurance.
+    """
+    return _call("symondevice", "/api/symondevice/owned_by", timeout=120.0)
+
+
 CONNECTORS: list[Tool] = [
     Tool("board_settings", "Every configured setting in the estate, or one section. "
          "Optional argument: section.",
@@ -668,6 +745,30 @@ CONNECTORS: list[Tool] = [
          "rule 3.1b-i from the layer corpus and returns what was searched.",
          {"type": "object", "properties": {"capability": {"type": "string"}},
           "required": ["capability"]}, find_permissive),
+    Tool("hardware_inventory", "What is physically in this machine: the CPU with its counts, "
+         "topology and instruction-set flags, memory including the reclaimable part, every "
+         "block device including the removable and zero-size ones, and the full PCI and USB "
+         "topology with the driver bound to each function or explicitly none. Read from /proc "
+         "and /sys rather than from a tool's printed output. Optional `part` fetches one of "
+         "cpu, memory, storage, pci, usb instead of all five.",
+         {"type": "object", "properties": {"part": {"type": "string",
+          "description": "one of cpu, memory, storage, pci, usb; omit for all five"}}},
+         hardware_inventory),
+    Tool("hardware_health", "What the machine is doing right now: temperatures, fans and "
+         "voltages carrying the kernel's own labels, and every power supply with its state and "
+         "whether it powers the machine or a peripheral. Read only — no fan curve, control "
+         "attribute or clock is written. Any reading that could not be taken is named rather "
+         "than silently dropped.",
+         {"type": "object", "properties": {}}, hardware_health),
+    Tool("hardware_network", "Network interfaces with link state, driver and negotiated speed. "
+         "The hardware address is never returned — only whether one exists and its three-octet "
+         "registrant prefix — so do not call this expecting a MAC address.",
+         {"type": "object", "properties": {}}, hardware_network),
+    Tool("hardware_owned_by", "Which component of this estate covers each class of hardware on "
+         "this host, and which classes are covered by nothing. Keeps apart a device no driver "
+         "claimed and a device a driver owns that no component is responsible for. Use this to "
+         "answer what this estate does NOT yet cover.",
+         {"type": "object", "properties": {}}, hardware_owned_by),
 ]
 
 # Components on the board that deliberately have NO agent tool, each with the reason. The
@@ -685,8 +786,6 @@ NO_TOOL_REASON: dict[str, str] = {
     "control_plane": "read-only and supervised elsewhere (rules R14)",
     "gateway": "reached as list_models; the rest of its surface is the public dialect, not a "
                "tool surface",
-    "symondevice": "PENDING — the component is still being built. This entry is a placeholder "
-                   "and must become a tool or a real reason before it is released",
 }
 
 
@@ -723,6 +822,8 @@ def connectors() -> list[dict]:
         "skill_read": "symonskill",
         "store_models": "store", "targets_buildable": "symoncross",
         "build_ready": "symonbuild", "find_permissive": "symonoematch",
+        "hardware_inventory": "symondevice", "hardware_health": "symondevice",
+        "hardware_network": "symondevice", "hardware_owned_by": "symondevice",
     }
     try:
         table = {c["component"]: c for c in _fabric_get("/api/fabric/components")["components"]}
