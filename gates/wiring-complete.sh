@@ -72,7 +72,7 @@ def _dict_keys(src: str, name: str) -> set:
                             if isinstance(k, ast.Constant)} if hasattr(node.value, "keys") else set()
     return set()
 
-def _dict_items(src: str, name: str) -> dict:
+def _dict_items(src: str, name: str) -> dict | None:
     """Read a dict ANYWHERE in the file, including inside a function.
 
     _dict_keys walks only the module body. `by_tool` is built inside the function that
@@ -89,7 +89,11 @@ def _dict_items(src: str, name: str) -> dict:
                     return dict(ast.literal_eval(node.value))
                 except Exception:
                     return {}
-    return {}
+    # None means "the name is not there at all", which is different from "it is there and
+    # empty". An empty tool map is a legitimate state; an absent one means this gate cannot
+    # see the mapping and must not report a pass. Conflating them made the gate exit 2 on a
+    # fixture built to make it FAIL — found by gates/selftest.sh on 2026-09-20.
+    return None
 
 
 # A reason that defers the decision is not a decision. On 2026-09-19 `symondevice` sat in
@@ -99,19 +103,19 @@ def _dict_items(src: str, name: str) -> dict:
 _DEFERRAL = re.compile(r"\b(PENDING|TODO|TBD|FIXME|XXX|placeholder|for now|later)\b", re.I)
 
 known = _dict_keys(w, "KNOWN")
-not_routable_items = _dict_items(w, "NOT_ROUTABLE")
+not_routable_items = _dict_items(w, "NOT_ROUTABLE") or {}
 not_routable = set(not_routable_items) or _dict_keys(w, "NOT_ROUTABLE")
 
 # --- the connectors: a tool actually maps to it, or NO_TOOL_REASON says why not ---------------
 c = conn_p.read_text(errors="replace")
 by_tool = _dict_items(c, "by_tool")
-if not by_tool:
+if by_tool is None:
     # A check that cannot fail has gated nothing. Say so rather than quietly regressing.
     print("  cannot read the tool->component map (`by_tool`) from the connectors; "
           "this gate cannot verify reachability and is not reporting a pass")
     sys.exit(2)
 reached = set(by_tool.values())
-no_tool_reason_items = _dict_items(c, "NO_TOOL_REASON")
+no_tool_reason_items = _dict_items(c, "NO_TOOL_REASON") or {}
 no_tool_reason = set(no_tool_reason_items) or _dict_keys(c, "NO_TOOL_REASON")
 
 bad = []

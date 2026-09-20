@@ -71,6 +71,30 @@ printf 'SYM_DECLARED=x\n' > "$BAD/contract/symoneural-learn.env.example"
 printf 'import os\nos.environ.get("SYM_DECLARED")\nos.environ.get("SYM_CHAT_ENABLED")\n' > "$GOOD/contract/app.py"
 printf 'SYM_DECLARED=x\nSYM_<NAME>_ENABLED=\n' > "$GOOD/contract/symoneural-learn.env.example"
 
+# wiring-complete needs a whole miniature estate: a board, a fabric table and a connectors
+# module. They live in their own roots rather than under $BAD/$GOOD, because no-weights and
+# no-divergent-copy scan those wholesale and a fixture must not perturb another gate's result.
+#
+# The gate resolves its tree by matching *SymonSayDistribute* in the argument and FALLS BACK to
+# the real /mnt/SymonSayDistribute otherwise — so a fixture root that does not match silently
+# tests the live estate twice and proves nothing. That mistake was made on 2026-09-20 and is why
+# these directories are named the way they are.
+WBAD="$WORK/wire-bad/SymonSayDistribute"; WGOOD="$WORK/wire-good/SymonSayDistribute"
+for r in "$WBAD" "$WGOOD"; do
+  mkdir -p "$r/adaptive-fabric/symoneural_fabric" "$r/agents/symoneural_agents"
+  printf 'KNOWN = {"widget": {"prefix": "/api/widget"}}\nNOT_ROUTABLE = {}\n' \
+    > "$r/adaptive-fabric/symoneural_fabric/wiring.py"
+done
+printf '[ports]\nwidget = 8899\n' > "$WORK/wire-board.ini"
+# BAD: the component is on the board and routed, but its only record in the connectors is a
+# reason that defers the decision. A key was once enough to satisfy this gate.
+printf 'NO_TOOL_REASON = {"widget": "PENDING - becomes a tool before release"}\ndef build():\n    by_tool = {}\n' \
+  > "$WBAD/agents/symoneural_agents/connectors.py"
+# GOOD: a tool actually maps to it. by_tool is function-local, which is why the gate reads it
+# with ast.walk rather than a module-body walk.
+printf 'NO_TOOL_REASON = {}\ndef build():\n    by_tool = {"widget_status": "widget"}\n' \
+  > "$WGOOD/agents/symoneural_agents/connectors.py"
+
 # A recipe with no LICENSE, and one with a licence and a checksum.
 mkdir -p "$BAD/recipes" "$GOOD/recipes"
 printf 'SUMMARY = "no licence"\nSRC_URI = "git://example"\n' > "$BAD/recipes/thing_git.bb"
@@ -127,6 +151,13 @@ check licence-stamped   "$WORK"             MISUSE
 # Inside one of the four trees, a directory with no LICENSE is exactly the state this refuses.
 [ -d /mnt/SymonSayDistribute/.bare ] && check licence-stamped /mnt/SymonSayDistribute/.bare FAIL
 [ -d /mnt/SymonSayDistribute/workflow ] && check licence-stamped /mnt/SymonSayDistribute/workflow PASS
+
+# A component on the board that nothing can reach. The deferral is the interesting case: this
+# gate returned rc=0 on exactly this shape until 2026-09-20, because a key in NO_TOOL_REASON
+# counted as a decision and reachability was a regex over the whole file, which the deferral
+# entry satisfied by naming the component.
+SYM_BOARD_FILE="$WORK/wire-board.ini" check wiring-complete "$WBAD"  FAIL
+SYM_BOARD_FILE="$WORK/wire-board.ini" check wiring-complete "$WGOOD" PASS
 
 echo
 echo "$pass sound, $fail broken"
