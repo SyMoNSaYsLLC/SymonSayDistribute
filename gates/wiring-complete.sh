@@ -72,15 +72,54 @@ def _dict_keys(src: str, name: str) -> set:
                             if isinstance(k, ast.Constant)} if hasattr(node.value, "keys") else set()
     return set()
 
-known = _dict_keys(w, "KNOWN")
-not_routable = _dict_keys(w, "NOT_ROUTABLE")
+def _dict_items(src: str, name: str) -> dict:
+    """Read a dict ANYWHERE in the file, including inside a function.
 
-# --- the connectors: a tool names it, or NO_TOOL_REASON says why not --------------------------
+    _dict_keys walks only the module body. `by_tool` is built inside the function that
+    assembles the registry, so a module-body walk cannot see it — which is why the first
+    version of this gate fell back to a regex over the whole file and passed on a gap it
+    exists to catch. An ast.walk sees it.
+    """
+    for node in ast.walk(ast.parse(src)):
+        targets = node.targets if isinstance(node, ast.Assign) else (
+            [node.target] if isinstance(node, ast.AnnAssign) and getattr(node, "value", None) else [])
+        for t in targets:
+            if isinstance(t, ast.Name) and t.id == name:
+                try:
+                    return dict(ast.literal_eval(node.value))
+                except Exception:
+                    return {}
+    return {}
+
+
+# A reason that defers the decision is not a decision. On 2026-09-19 `symondevice` sat in
+# NO_TOOL_REASON as "PENDING — must become a tool or a real reason before it is released" and
+# this gate returned rc=0, because a key was present and the old reachability test matched any
+# quoted occurrence of the name anywhere in the file. Both holes are closed below.
+_DEFERRAL = re.compile(r"\b(PENDING|TODO|TBD|FIXME|XXX|placeholder|for now|later)\b", re.I)
+
+known = _dict_keys(w, "KNOWN")
+not_routable_items = _dict_items(w, "NOT_ROUTABLE")
+not_routable = set(not_routable_items) or _dict_keys(w, "NOT_ROUTABLE")
+
+# --- the connectors: a tool actually maps to it, or NO_TOOL_REASON says why not ---------------
 c = conn_p.read_text(errors="replace")
-reached = {n for n in named if re.search(rf'["\']{re.escape(n)}["\']', c)}
-no_tool_reason = _dict_keys(c, "NO_TOOL_REASON")
+by_tool = _dict_items(c, "by_tool")
+if not by_tool:
+    # A check that cannot fail has gated nothing. Say so rather than quietly regressing.
+    print("  cannot read the tool->component map (`by_tool`) from the connectors; "
+          "this gate cannot verify reachability and is not reporting a pass")
+    sys.exit(2)
+reached = set(by_tool.values())
+no_tool_reason_items = _dict_items(c, "NO_TOOL_REASON")
+no_tool_reason = set(no_tool_reason_items) or _dict_keys(c, "NO_TOOL_REASON")
 
 bad = []
+for n, why in list(not_routable_items.items()) + list(no_tool_reason_items.items()):
+    if isinstance(why, str) and _DEFERRAL.search(why):
+        bad.append((n, f"its recorded reason defers the decision: {why.strip()[:70]!r}",
+                    "replace it with a real reason, or wire the component"))
+
 for n in named:
     if n not in known and n not in not_routable:
         bad.append((n, "the fabric neither routes it nor records why not",
