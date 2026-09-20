@@ -83,6 +83,33 @@ is no parameter to add one.
 
 Health is public; the rest need `SYM_WEB_TOKEN`, and an unset token closes the unit.
 
+## The version gap (§3.1b-iii)
+
+This unit invokes a **W3C WebDriver binary** it does not own, and it does so blind. That is
+what §3.1b-iii forbids, and it is recorded here rather than fixed because the thing needed to
+fix it does not exist.
+
+| | |
+|---|---|
+| Component | `symonweb` |
+| Program invoked | a W3C WebDriver binary — `chromedriver`, `geckodriver`, `msedgedriver` or `safaridriver` |
+| Invocation site | `symonweb/browse.py`, `FAMILIES` / `SEARCH` / `drivers()`, started by `Session.__enter__` through `subprocess.Popen` |
+| On this host | `/opt/chromium.org/thorium/chromedriver`, `ChromeDriver 138.0.7204.303 (536d2fef30d3315d25495afac6fc0320396827d1)` |
+| Pin | **none.** Of the 108 pins in `SymonSaySource` not one records a browser driver, a Chromium, a Thorium or a browser of any kind |
+| Why no assertion was added | a comparison needs two sides. Reading the version and asserting it against nothing is theatre, and fabricating a pin is forbidden |
+| What would close it | one pin under `SymonSaySource` — upstream URL, full SHA, declared licence with its checksum, acquisition date — for the driver the estate builds against. `drivers()` then returns a version and a test fails on drift, exactly as `board` and `symonprobe` now do |
+
+**A claim in the code was wrong and has been corrected rather than carried.** `drivers()` said
+the version is not collected because running the binary launches a browser and hangs. That is
+true of `thorium-shell` and **false of `chromedriver`**: measured on 2026-09-20,
+`chromedriver --version` answered immediately with rc=0 and started nothing. The docstring now
+says so. It matters because the wrong reason made this look like a settled design decision when
+it is an open gap — and a gap nobody can see is one nobody closes.
+
+**What is deliberately NOT built here.** A bounded version probe in `drivers()`. It is a small
+change and an obvious one, and it stays unbuilt until there is a pin to compare against, so
+that the pin arrives with its assertion rather than the assertion arriving with nothing to do.
+
 ## Placement
 
     placement-triage prospect symonweb --sources python-stdlib@PSF-2.0
@@ -109,3 +136,16 @@ browser renders one.
 ## Releases
 
 Tagged `symonweb/v<version>`.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonweb`](symonweb/symonweb.md) | the capability this unit provides — `browse.py`, `fetch.py`, `guard.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonweb`](symonweb/symonweb.md), [`tests`](tests/tests.md).
