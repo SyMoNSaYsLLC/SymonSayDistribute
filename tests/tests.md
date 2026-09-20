@@ -36,6 +36,27 @@ or it signs a file that then changes.
 ordering guard is guarding nothing and should be revisited rather than silently kept — a test
 that cannot fail has gated nothing.
 
+## The sweep tools, and the five defects they shipped
+
+`drive-sweep.sh` drives `secret-sweep.py` over a cloud remote. Every assertion below exists
+because the script reported success while doing the opposite:
+
+    --files-from with --max-size      rclone refuses to load any filter and fetches NOTHING,
+                                      exit 0. Measured: 0 of 5196 files, reported as clean.
+    a fetch of zero files             counted as a clean chunk and written as a checkpoint,
+                                      so the false clean would have been permanent.
+    a short fetch                     317 of 400 arrived, rclone exit 0, checkpoint banked.
+                                      All 12 sampled absentees were still on the remote.
+    the checkpoint key                keyed on the part alone, so two different lists both
+                                      produce part-0000 and the second skips the first's work.
+    the chunk directory               one fixed directory cleared on entry — passing it a list
+                                      that lived there deleted the input, then reported success.
+
+And one in the scanner itself: `redact()` replaced only the match that produced the finding, so
+a line carrying both an access token and a refresh token printed whichever one it had not
+matched. That reached a terminal and a 0664 log. It now sweeps the line with every pattern it
+knows, and a test asserts neither value survives.
+
 ## Interfaces
 
 Reads `../release-notes.py`, `../stage-and-cut.sh` and `../ship-gate.py` — the first by running

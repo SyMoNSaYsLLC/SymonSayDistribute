@@ -115,6 +115,20 @@ workflow/install-from-release.sh --runtime symoneural-learn
 The index of runtimes and branches is on `main`. Each runtime branch carries its own
 documentation; this branch describes only how one gets released.
 
+## Operational tools, not part of the release path
+
+Three scripts here are estate operations rather than release machinery, and a reader following
+the release steps should not expect to meet them:
+
+| Script | What it does |
+|---|---|
+| `start-estate.sh` | brings the units back after a reboot, reading `[ports]` from the board |
+| `secret-sweep.py` | finds exposed credentials by shape; reports location, kind, fingerprint — never a value |
+| `drive-sweep.sh` | drives that scanner over a cloud remote in bounded, resumable batches |
+
+They live here because §3.3a puts a tool on a branch with a licence and a version the second
+time it is run, and this is the branch that holds the estate's machinery.
+
 ## Directories
 
 | Directory | What lives there |

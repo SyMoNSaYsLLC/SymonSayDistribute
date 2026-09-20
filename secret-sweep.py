@@ -117,8 +117,28 @@ def fingerprint(s: str) -> str:
 
 
 def redact(line: str, match: str) -> str:
-    """The line with the secret replaced by its length. Enough context to judge, no value."""
-    out = line.replace(match, f"<redacted:{len(match)}B>")
+    """The line with EVERY credential on it replaced by its length. No value, ever.
+
+    Redacting only the match that produced this finding is not enough, and that is not a
+    theoretical point. On 2026-09-20 a Claude OAuth credentials file was found whose single
+    line carries both an access token and a refresh token. Matching the first redacted the
+    first and printed the second in full; matching the second did the reverse. Both values
+    reached a terminal and a world-readable log before anyone noticed.
+
+    So the line is swept with every pattern this scanner knows before it is returned. A
+    credential this tool does not recognise can still survive, which is why the context is
+    also truncated — but a line holding two secrets of known shape now loses both.
+    """
+    out = line
+    seen: set[str] = set()
+    for _kind, rx in COMPILED:
+        for m in rx.finditer(line):
+            hit = m.group(1) if (m.groups() and m.group(1)) else m.group(0)
+            if hit and hit not in seen:
+                seen.add(hit)
+                out = out.replace(hit, f"<redacted:{len(hit)}B>")
+    if match and match not in seen:
+        out = out.replace(match, f"<redacted:{len(match)}B>")
     return out.strip()[:200]
 
 
