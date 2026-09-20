@@ -182,6 +182,17 @@ def check(_: Authed) -> dict[str, Any]:
     return {"ok": not problems, "count": len(problems), "problems": problems}
 
 
+@app.get("/api/board/pinned")
+def pinned(_: Authed) -> dict[str, Any]:
+    """§3.1b-iii: every external program the board runs, against its recorded pin.
+
+    Measured on every request by running each program, not read from a note. A row with
+    `pin: null` is a program the estate has no version record for — reported rather than
+    omitted, because an omitted program reads as one with nothing to check.
+    """
+    return B.pinned()
+
+
 # --------------------------------------------------------------------------- switches
 @app.get("/api/board/client")
 def client(_: Authed) -> dict[str, Any]:

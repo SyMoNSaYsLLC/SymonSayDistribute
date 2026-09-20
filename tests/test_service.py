@@ -110,3 +110,104 @@ def test_client_reports_a_fingerprint_not_a_key():
 
 def test_an_unknown_surface_is_refused():
     assert C.post("/api/board/client/nonsense", headers=AUTH).status_code == 422
+
+
+# --- §3.1b-iii: a program invoked without a recorded version is invoked blind ----------------
+import board as B
+
+
+def test_every_external_program_the_board_runs_has_a_row():
+    """Nothing may be omitted. A program left out of the census reads as one with nothing to
+    check, which is exactly the blind invocation the rule forbids."""
+    p = B.pinned()
+    assert p["count"] == len(B.INVOKED) > 0
+    assert {r["program"] for r in p["programs"]} == {s["program"] for s in B.INVOKED}
+    for r in p["programs"]:
+        assert r["state"] in ("MATCHES", "DRIFT-RECORDED", "DRIFT-NEW",
+                              "UNRESOLVED-PIN", "UNREADABLE", "NO-PIN"), r
+        assert r["where"] and r["why"], r
+
+
+def test_nothing_this_board_runs_has_moved_since_it_was_recorded():
+    """THE assertion §3.1b-iii asks for. A pinned program that has drifted since anyone last
+    looked fails here, so an upgrade underneath the board is found by this rather than by an
+    operator watching [live] report DOWN for a port that is up."""
+    p = B.pinned()
+    assert p["new_drift"] == [], (
+        "a pinned program moved and nothing recorded it: "
+        + "; ".join(r["why"] for r in p["programs"] if r["state"] == "DRIFT-NEW"))
+
+
+def test_the_driver_this_host_runs_is_the_one_the_estate_pinned():
+    """The one program here that HAS a pin, asserted against it by running it. Not vacuous:
+    it fails if nvidia-smi is absent, if the pin is unreadable, or if the two disagree."""
+    row = next(r for r in B.pinned()["programs"] if r["program"] == "nvidia-smi")
+    if row["state"] == "UNREADABLE" and "could not run" in row["reports"]:
+        pytest.skip("no nvidia-smi on this host")
+    assert row["pin_file"] and row["pinned"], row
+    assert row["observed"], "nvidia-smi did not report a driver version"
+    assert row["state"] == "MATCHES", row["why"]
+
+
+def test_the_comparison_actually_fires_when_a_version_disagrees(monkeypatch, tmp_path):
+    """The partner to the test above. With a pin that cannot match, the SAME program must come
+    back DRIFT-NEW naming both versions — otherwise 'MATCHES' proves only that this never
+    compares anything."""
+    pins = tmp_path / "platform" / "pins"
+    pins.mkdir(parents=True)
+    (pins / "open-gpu-kernel-modules.json").write_text(
+        '{"component": "open-gpu-kernel-modules", "intended_tag_version": "0.0.0"}')
+    monkeypatch.setattr(B, "PIN_ROOT", str(tmp_path))
+    row = next(r for r in B.pinned()["programs"] if r["program"] == "nvidia-smi")
+    if not row["observed"]:
+        pytest.skip("no nvidia-smi on this host")
+    assert row["state"] == "DRIFT-NEW", row
+    assert "0.0.0" in row["why"] and row["observed"] in row["why"], row["why"]
+
+
+def test_a_pin_that_names_no_version_is_never_reported_as_agreement(monkeypatch, tmp_path):
+    """UNRESOLVED must not read as MATCHES. Four of the 108 pins carry UNRESOLVED, and a
+    comparison that treats 'no version recorded' as 'the version agrees' would launder every
+    one of them into a pass."""
+    pins = tmp_path / "platform" / "pins"
+    pins.mkdir(parents=True)
+    (pins / "open-gpu-kernel-modules.json").write_text(
+        '{"component": "open-gpu-kernel-modules", "intended_tag_version": "UNRESOLVED"}')
+    monkeypatch.setattr(B, "PIN_ROOT", str(tmp_path))
+    row = next(r for r in B.pinned()["programs"] if r["program"] == "nvidia-smi")
+    assert row["state"] == "UNRESOLVED-PIN", row
+
+
+def test_a_program_with_no_pin_is_named_as_a_gap_not_quietly_passed():
+    """§3.1b-iii step 1: 'a component invoking something with no pin is naming a gap'. bash,
+    ss, grep and curl have no pin among the 108, and each must SAY so."""
+    p = B.pinned()
+    assert set(p["unpinned"]) == {"bash", "ss", "grep", "curl"}, p["unpinned"]
+    for r in p["programs"]:
+        if r["state"] == "NO-PIN":
+            assert r["pin"] is None and r["pin_file"] is None
+            assert "GAP" in r["pin_note"] and "Closed by" in r["pin_note"] or \
+                   "missing" in r["pin_note"], r["pin_note"]
+
+
+def test_a_missing_pin_registry_does_not_look_like_agreement(monkeypatch, tmp_path):
+    monkeypatch.setattr(B, "PIN_ROOT", str(tmp_path / "absent"))
+    p = B.pinned()
+    assert p["pins_available"] == 0
+    assert "MATCHES" not in p["by_state"], p["by_state"]
+
+
+def test_the_version_probe_is_an_argument_vector_never_a_shell():
+    import inspect
+    src = inspect.getsource(B._observe)
+    assert "shell=True" not in src
+    for s in B.INVOKED:
+        assert isinstance(s["argv"], tuple) and len(s["argv"]) >= 2, s
+
+
+def test_pinned_is_routed_and_returns_the_same_census():
+    r = C.get("/api/board/pinned", headers=AUTH)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] == len(B.INVOKED)
+    assert {x["program"] for x in body["programs"]} == {s["program"] for s in B.INVOKED}

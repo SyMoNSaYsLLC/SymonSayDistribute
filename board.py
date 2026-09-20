@@ -60,6 +60,7 @@ NOT_EXPOSED = {
     "cmd_client": "a command-line entry point; routed as POST /api/board/client/{surface}",
     "cmd_sections": "a command-line entry point; routed as GET /api/board/sections",
     "cmd_check": "a command-line entry point; routed as GET /api/board/check",
+    "cmd_pinned": "a command-line entry point; the capability is routed as GET /api/board/pinned",
     "main": "the command-line dispatcher",
 }
 LIVE = "live"
@@ -455,6 +456,155 @@ def live(board: Board) -> list[str]:
     return out
 
 
+# ------------------------------------------------- §3.1b-iii: nothing is invoked blind
+# Every program this file RUNS that the estate does not own. Invoking them is allowed and is
+# what keeps their licences out of our artifacts; invoking them without a recorded version is
+# not, because an upgrade underneath the board is then discovered by an operator rather than
+# by a test.
+#
+# A program with no pin is listed with `pin: None` rather than omitted. Omission reads as
+# "nothing to check here"; a named row with no pin reads as "this can move under us and
+# nothing would notice", which is the true statement and the gap the rule exists to surface.
+PIN_ROOT = os.environ.get("SYM_PIN_ROOT", "/mnt/SymonSaySource")
+
+_VERSION_RE = re.compile(r"\d+(?:\.\d+)+")
+
+INVOKED: tuple[dict, ...] = (
+    {"program": "nvidia-smi",
+     "argv": ("nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"),
+     "where": "card() — total/used/free memory for the [live] section",
+     "pin": "open-gpu-kernel-modules",
+     "pin_note": "that pin's component is the open GPU KERNEL MODULE source; nvidia-smi is "
+                 "driver userspace. They ship on one release train and the strings are "
+                 "identical — `nvidia-smi --version` reports the same KMD version — which is "
+                 "why this pin governs it. Stated rather than assumed, because the pin does "
+                 "not nominally name the binary being asserted."},
+    {"program": "bash", "argv": ("bash", "--version"),
+     "where": "sh('bash','-lc',...) in listener(), client_3p() and client_surfaces()",
+     "pin": None,
+     "pin_note": "GAP: no pin in SymonSaySource for bash. Its LICENCE position is settled — "
+                 "the ship gate classifies bash as INVOKED_NOT_LINKED for board/v1.3.0 — but "
+                 "a licence classification is not a version record, and this rule is about "
+                 "the version. Closed by a pin under SymonSaySource naming the bash the "
+                 "estate builds against."},
+    {"program": "ss", "argv": ("ss", "-V"),
+     "where": "listener() — which pid holds a port, through the bash string",
+     "pin": None,
+     "pin_note": "GAP: no pin for iproute2. `ss -V` output is parsed for a pid, so a change "
+                 "to its format silently turns every port into DOWN. Closed by an iproute2 "
+                 "pin under SymonSaySource."},
+    {"program": "grep", "argv": ("grep", "--version"),
+     "where": "listener() — filters `ss -lntp` output, through the bash string",
+     "pin": None,
+     "pin_note": "GAP: no pin for GNU grep. Same INVOKED_NOT_LINKED licence position as bash "
+                 "(coreutils is already classified for board/v1.3.0); the version is what is "
+                 "missing."},
+    {"program": "curl", "argv": ("curl", "--version"),
+     "where": "client_3p() and client_surfaces() — the gateway and web console health probes",
+     "pin": None,
+     "pin_note": "GAP: no pin for curl. This one reaches the NETWORK as well as the disk, so "
+                 "it is the row furthest from §3.1b-iii's end state. Closed by a curl pin, or "
+                 "by replacing the probe with urllib, which is already carried."},
+)
+
+# Drift observed on disk and PRESERVED, not resolved. A pin records the INTENDED reproducible
+# revision; the checkout records the OBSERVED one. Neither is moved to match the other — that
+# is provenance's job, not a test's. What this table buys is that a NEW movement is red while
+# a recorded one is not, so the suite stays a working alarm instead of a permanent siren.
+# Key: (program, normalised pin, normalised observed) -> when it was recorded and why.
+KNOWN_DRIFT: dict[tuple[str, str, str], str] = {}
+
+
+def _norm(v: str) -> str:
+    """A version string reduced to its dotted numeric core, so `v0.29.0`, `0.29.0+cu130` and
+    `0.29.0 (foo)` compare as the same release. Returns '' when there is no number to compare,
+    which is reported as unreadable rather than as disagreement."""
+    m = _VERSION_RE.search(v or "")
+    return m.group(0) if m else ""
+
+
+def _pins() -> dict[str, dict]:
+    """Every pin SymonSaySource records, by component name. Read off disk, never assumed."""
+    out: dict[str, dict] = {}
+    root = Path(PIN_ROOT)
+    if not root.is_dir():
+        return out
+    for f in root.rglob("*.json"):
+        s = str(f)
+        if "/.git/" in s or "/pins/" not in s:
+            continue
+        try:
+            d = json.loads(f.read_text())
+        except Exception:
+            continue
+        c = d.get("component")
+        if c:
+            out[str(c).lower()] = {**d, "pin_file": s}
+    return out
+
+
+def _observe(argv: tuple[str, ...]) -> tuple[str, str]:
+    """(first line the program printed, normalised version). Bounded, argv, never a shell."""
+    try:
+        r = subprocess.run(list(argv), capture_output=True, text=True, timeout=20,
+                           stdin=subprocess.DEVNULL, check=False)
+    except Exception as e:
+        return (f"could not run: {e}", "")
+    if r.returncode != 0:
+        return (f"exited {r.returncode}: {(r.stderr or r.stdout).strip()[:120]}", "")
+    text = (r.stdout or "") + (r.stderr or "")
+    first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+    return (first, _norm(first))
+
+
+def pinned() -> dict:
+    """Does every external program this board runs agree with the version the estate recorded?
+
+    §3.1b-iii: a component that invokes a program it does not own must assert that program's
+    version against a recorded pin. Five programs are invoked here and each gets a row, with
+    the four that have NO pin saying so — an unrecorded program is the gap, not an omission.
+    """
+    pins = _pins()
+    rows, states = [], {}
+    for spec in INVOKED:
+        reported, observed = _observe(spec["argv"])
+        pin = pins.get((spec["pin"] or "").lower()) if spec["pin"] else None
+        want = str(pin.get("intended_tag_version") or "") if pin else ""
+        wanted = _norm(want)
+        if pin is None:
+            state = "NO-PIN"
+            why = spec["pin_note"]
+        elif not wanted or want.upper().startswith("UNRESOLVED"):
+            state = "UNRESOLVED-PIN"
+            why = f"{spec['pin']} is pinned {want!r}, which names no version to compare"
+        elif not observed:
+            state = "UNREADABLE"
+            why = f"the program did not report a version: {reported}"
+        elif observed == wanted:
+            state = "MATCHES"
+            why = f"reports {observed}, which is what {pin['pin_file']} records"
+        elif (spec["program"], wanted, observed) in KNOWN_DRIFT:
+            state = "DRIFT-RECORDED"
+            why = KNOWN_DRIFT[(spec["program"], wanted, observed)]
+        else:
+            state = "DRIFT-NEW"
+            why = (f"the pin records {want!r} and this host runs {observed!r}. This movement "
+                   f"is not in KNOWN_DRIFT, so it happened after the last time anyone looked.")
+        rows.append({"program": spec["program"], "where": spec["where"],
+                     "argv": list(spec["argv"]), "reports": reported, "observed": observed,
+                     "pin": spec["pin"], "pin_file": pin.get("pin_file") if pin else None,
+                     "pinned": want or None, "state": state, "why": why,
+                     "pin_note": spec["pin_note"]})
+        states.setdefault(state, []).append(spec["program"])
+    return {"pin_root": PIN_ROOT, "pins_available": len(pins), "count": len(rows),
+            "programs": rows, "by_state": {k: sorted(v) for k, v in states.items()},
+            "unpinned": sorted(states.get("NO-PIN", [])),
+            "new_drift": sorted(states.get("DRIFT-NEW", [])),
+            "why": (f"{len(states.get('NO-PIN', []))} of {len(rows)} programs this board runs "
+                    f"have no pin in SymonSaySource; each can change underneath the board with "
+                    f"nothing to notice.")}
+
+
 # ------------------------------------------------------------------ commands
 def cmd_show(a) -> int:
     b = Board.load(a.board)
@@ -631,6 +781,25 @@ def cmd_client(a) -> int:
     return 0
 
 
+def cmd_pinned(a) -> int:
+    """Every external program this board runs, against the version SymonSaySource recorded."""
+    p = pinned()
+    print(f"{p['pins_available']} pins in {p['pin_root']}; {p['count']} program(s) invoked here\n")
+    bad = 0
+    for r in p["programs"]:
+        broken = r["state"] in ("DRIFT-NEW", "UNREADABLE")
+        bad += broken
+        print(f"  {'FAIL' if broken else 'ok  '}  {r['program']:<12} {r['state']:<16} "
+              f"{(r['observed'] or '?'):<12} {r['why']}")
+    if p["unpinned"]:
+        print(f"\n{len(p['unpinned'])} program(s) with NO pin: {', '.join(p['unpinned'])}")
+        print("Under §3.1b-iii each is a gap, not a pass — it can move with nothing to notice.")
+    if bad:
+        print(f"\n{bad} program(s) moved since anyone last looked")
+        return 1
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="symon-board")
     ap.add_argument("--board", default=DEFAULT_BOARD)
@@ -639,6 +808,7 @@ def main() -> int:
     p = sub.add_parser("diff"); p.set_defaults(fn=cmd_diff)
     p = sub.add_parser("sections"); p.set_defaults(fn=cmd_sections)
     p = sub.add_parser("check"); p.set_defaults(fn=cmd_check)
+    p = sub.add_parser("pinned"); p.set_defaults(fn=cmd_pinned)
     p = sub.add_parser("env"); p.add_argument("--allow-stale", action="store_true"); p.set_defaults(fn=cmd_env)
     p = sub.add_parser("client"); p.add_argument("surface", nargs="?",
                                                  choices=list(SURFACES) + ["status"], default="status")
