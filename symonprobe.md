@@ -69,9 +69,58 @@ needed. A test asserts every route is read-only.
     GET /api/symonprobe/packages    installed distributions, filterable
     GET /api/symonprobe/parsers     registered parser names a serving runtime offers
     GET /api/symonprobe/suggest     candidate parsers for a checkpoint, with the evidence
+    GET /api/symonprobe/pinned      every version this probe rests on, against its pin
 
 Health is public; the rest need `SYM_PROBE_TOKEN`, and an unset token closes the unit rather
 than opening it.
+
+## The probe's own inputs are asserted against their pins (§3.1b-iii)
+
+Every module here exists to stop somebody believing a stale number. `devices()` refuses to let
+a compute capability be read as a CUDA version; `fit()` refuses to let a `cu130` in a directory
+name stand for "runs on this card". All of those answers come out of programs this estate did
+not write — and until now the probe reported their output without ever asking what version
+produced it. That is the one failure this unit is least entitled to: a probe whose own inputs
+can move underneath it reports yesterday's machine with today's confidence.
+
+`GET /api/symonprobe/pinned?venv=…` runs each one and compares. Measured 2026-09-20 against
+`~/.venvs/vllm-0271-cu130`:
+
+| Reads | Where | Pin | Observed | State |
+|---|---|---|---|---|
+| `nvidia-smi` driver version | `device._nvidia_smi()` | `platform/pins/open-gpu-kernel-modules.json` → 615.71.09 | 615.71.09 | **MATCHES** |
+| `torch.__version__` | `device.build()` — the arch list `fit()` decides from | `common/pins/pytorch.json` → v2.14.0 | 2.13.0+cu130 | **DRIFT-RECORDED** |
+| `vllm.__version__` | `runtime.parsers()` — the parser names are version-specific | `llm/pins/vllm.json` → v0.29.0 | 0.27.1 | **DRIFT-RECORDED** |
+| `torch.version.cuda` | `device.build()` — reported as `cuda_built_against` | none | 13.0 | **NO-PIN** |
+| the venv interpreter | `device._venv_python()` | none | CPython 3.12.13 | **NO-PIN** |
+
+**The pin that governs `nvidia-smi` does not nominally name it.** `open-gpu-kernel-modules` is
+the open GPU *kernel module* source; `nvidia-smi` is driver userspace. They ship on one release
+train and the strings are identical — `nvidia-smi --version` reports the same KMD version —
+which is why this pin governs it. Written down because a reader checking the pin file will not
+find the word `nvidia-smi` in it.
+
+**The sharpest gap is the CUDA toolkit.** This unit's entire reason for existing is that the
+toolkit version and the card's compute capability are different numbers that must never be read
+as each other — and one of those two numbers has no record in `SymonSaySource` at all. Closed
+by a cuda-toolkit pin. CPython is the second gap, on the same terms.
+
+### Drift is preserved, not resolved
+
+A pin records the **intended** reproducible revision; a checkout records the **observed** one.
+Neither was edited to match the other. The assertion is therefore not "everything matches" but
+**"nothing moved without being recorded"**: `KNOWN_DRIFT` in `runtime.py` carries each
+disagreement with its date and reason, and a version moving to a value not in that table comes
+back `DRIFT-NEW` and fails a test.
+
+One source failing does not silence the census: a venv with no importable vLLM still yields a
+driver answer and a torch answer, because a census that dies on its first failure turns one
+missing package into "nothing is checked". A test asserts exactly that.
+
+**Why this lives in `runtime.py`.** It was written as `pins.py` first and `no-divergent-copy`
+refused every commit in the estate for it — the gate compares by basename across all four
+trees. It sits in `runtime.py` rather than `device.py` because `runtime.py` already depends on
+`device.py`, so the census can read the card and the build without a circular import.
 
 ## Placement
 
@@ -93,3 +142,16 @@ name; a candidate is offered only if the runtime actually registers it; every ro
 ## Releases
 
 Tagged `symonprobe/v<version>`.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonprobe`](symonprobe/symonprobe.md) | the capability this unit provides — `device.py`, `runtime.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonprobe`](symonprobe/symonprobe.md), [`tests`](tests/tests.md).
