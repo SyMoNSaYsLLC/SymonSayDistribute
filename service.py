@@ -90,6 +90,17 @@ def surface(_: Authed, venv: str = "") -> dict[str, Any]:
     return _guard(C.surface, venv or DEFAULT_VENV)
 
 
+@app.get("/api/symonengine/pinned")
+def pinned(_: Authed, venv: str = "") -> dict[str, Any]:
+    """§3.1b-iii: what this build carries, against what SymonSaySource recorded it should be.
+
+    Per-venv, because the vLLM environments on this host disagree with each other and a single
+    answer would be true of one and quietly wrong about the other. A row with `pin: null` is a
+    program the estate has no version record for, reported rather than omitted.
+    """
+    return _guard(C.pinned, venv or DEFAULT_VENV)
+
+
 @app.get("/api/symonengine/summary")
 def summary(_: Authed, venv: str = "") -> dict[str, Any]:
     """The same surface as counts, for when the full lists are not the question."""
