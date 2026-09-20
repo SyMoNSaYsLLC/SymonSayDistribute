@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
+# Copyright 2026 SymonSaysLLC
+# SyMoNsAyLeaRn — SyMoNeuRaL, a subdivision of SymonSaysLLC. Terms: see LICENSE.
+#
+# Bring the estate back after a reboot.
+#
+# WHY THIS EXISTS
+# ---------------
+# start-estate.sh has existed since 2026-09-19 and its own commit message says it was written
+# "because a reboot took everything and nothing brought it back". It was still true: the machine
+# rebooted twice on 2026-09-20 — 19:10 the previous evening and 08:07 — and both times every
+# unit stayed down until somebody noticed. Both shutdowns were clean; the units logged
+# "Application shutdown complete" and exited. Nothing was broken. Nothing ran the launcher.
+#
+# WHAT IT DOES NOT DO
+# The launcher skips four units and this unit inherits every one of those refusals:
+#   control_plane  read-only and supervised elsewhere (R14) — never started here
+#   chat           the engine; its GPU fit is a judgement, not a default
+#   gateway        served from a different tree
+#   web            not a python service
+# So this brings back the 23 that are safe to bring back, and nothing else.
+#
+# It is a oneshot because the launcher is not a supervisor: it starts what is down, reports
+# "already listening" for what is up, and exits. Running it twice is harmless, which is what
+# makes it safe to wire to boot.
+[Unit]
+Description=SyMoNeuRaL estate — start the units the control board declares
+Documentation=file:///mnt/SymonSayDistribute/workflow/workflow.md
+After=network-online.target
+Wants=network-online.target
+# If the board is not there the estate is not there. Failing to find it is not an error worth
+# a failed unit; there is simply nothing to start.
+ConditionPathExists=/mnt/models/control.board
+ConditionFileIsExecutable=/mnt/SymonSayDistribute/workflow/start-estate.sh
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/mnt/SymonSayDistribute/workflow/start-estate.sh
+TimeoutStartSec=600
+
+[Install]
+WantedBy=default.target

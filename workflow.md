@@ -125,6 +125,21 @@ the release steps should not expect to meet them:
 | `start-estate.sh` | brings the units back after a reboot, reading `[ports]` from the board |
 | `secret-sweep.py` | finds exposed credentials by shape; reports location, kind, fingerprint — never a value |
 | `drive-sweep.sh` | drives that scanner over a cloud remote in bounded, resumable batches |
+| `symoneural-estate.service` | a systemd **user** unit that runs `start-estate.sh` at boot |
+
+`symoneural-estate.service` exists because `start-estate.sh` was written "because a reboot took
+everything and nothing brought it back" — and that was still true afterwards. The machine
+rebooted twice on 2026-09-20 and both times every unit stayed down until somebody noticed. Both
+shutdowns were clean. Nothing was broken; nothing ran the launcher.
+
+It is a `oneshot`, because the launcher is not a supervisor: it starts what is down, reports
+"already listening" for what is up, and exits. Running it twice is harmless, which is what makes
+it safe to wire to boot. It inherits every refusal the launcher makes, so `control_plane` is
+still never started here (R14), and neither are `chat`, `gateway` or `web`.
+
+Installed at `~/.config/systemd/user/`, which is where systemd requires a user unit to live; the
+copy here is the source of truth. Lingering is already enabled on this account, so it starts
+without a login session.
 
 They live here because §3.3a puts a tool on a branch with a licence and a version the second
 time it is run, and this is the branch that holds the estate's machinery.
