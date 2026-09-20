@@ -101,3 +101,16 @@ The model arithmetic is separate because it reads a checkpoint rather than an ex
 None of these carries a default for a quantity that must be measured. A missing bandwidth, a
 missing reserve or a config that does not declare its layer types is a refusal with a reason,
 never a number produced from an assumption — that is the whole point of the unit existing.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symoneural_ravencalc`](symoneural_ravencalc/symoneural_ravencalc.md) | the capability this unit provides — `compute.py`, `model.py`, `service.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 2 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symoneural_ravencalc`](symoneural_ravencalc/symoneural_ravencalc.md), [`tests`](tests/tests.md).
