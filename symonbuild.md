@@ -326,10 +326,23 @@ Tagged `symonbuild/v<version>`.
 not registered on the control board, and nothing in the estate calls it yet. `SYM_BUILD_TOKEN`
 is unprovisioned, which on a loopback bind is the designed state and not a gap.
 
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonbuild`](symonbuild/symonbuild.md) | the capability this unit provides — `cooker.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
 ## Where this leads
 
-The flow ends here for the build capability itself, because this component deliberately stops at
-reporting. What it reports leads two ways, and neither is this component's to do:
+**Inside this branch**, on into [`symonbuild`](symonbuild/symonbuild.md), the capability, and
+then [`tests`](tests/tests.md), what proves it — in that order, because that is the order the
+code runs. Those two documents are the last in the branch.
+
+**Outside it** the flow ends here for the build capability itself, because this component
+deliberately stops at reporting. What it reports leads two ways, and neither is this component's to do:
 
 - The pins it compares against live on `/mnt/SymonSaySource/build` — `pins/bitbake.json` and
   `pins/openembedded-core.json` — and that branch's `sources.md` is where a pin moves.
