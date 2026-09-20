@@ -585,3 +585,32 @@ def test_subprocess_is_never_given_a_bare_string(monkeypatch: pytest.MonkeyPatch
     for argv in seen:
         assert isinstance(argv, list), argv
         assert all(isinstance(x, str) for x in argv), argv
+
+
+def test_no_obsolete_path_is_scanned():
+    """`/yocto` was settled obsolete on 2026-09-19: fstab entry removed, directory gone, and
+    "do not recreate obsolete mountpoints merely because historical configuration references
+    them" is a standing decision.
+
+    Software recreates a mountpoint in the only way it can — by continuing to look for one. This
+    module carried it twice: as a LAYER_ROOTS entry that reported "root absent" on every call,
+    and as OE_BUILD_DIR, which made every windows-target report carry a FileNotFoundError as its
+    build-directory evidence. An error about a decision is not a finding.
+    """
+    assert all(r[0] != "/yocto" for r in X.LAYER_ROOTS), [r[0] for r in X.LAYER_ROOTS]
+    assert str(X.OE_BUILD_DIR) != "/yocto"
+    for raw, _kind, _depth in X.LAYER_ROOTS:
+        assert not raw.rstrip("/").endswith("/yocto") or "Projects" in raw or "staging" in raw, raw
+
+
+def test_the_build_directory_is_configurable_like_the_other_roots():
+    """A path this specific is a property of one machine. DIST_ROOT and SOURCE_ROOT are both
+    overridable; OE_BUILD_DIR was a hardcoded literal, which is how it went stale unnoticed."""
+    import importlib, os
+    os.environ["SYM_CROSS_OE_BUILD_DIR"] = "/nonexistent-build-area"
+    try:
+        m = importlib.reload(X)
+        assert str(m.OE_BUILD_DIR) == "/nonexistent-build-area"
+    finally:
+        del os.environ["SYM_CROSS_OE_BUILD_DIR"]
+        importlib.reload(X)

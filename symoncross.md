@@ -263,8 +263,14 @@ blockers, all measured:
 |---|---|
 | No cross compiler | `shutil.which` returns `None` for `x86_64-w64-mingw32-gcc`, `x86_64-w64-mingw32-g++` and `i686-w64-mingw32-gcc`; the package query returns rc=1 with nothing installed |
 | The build-and-integration tool is not on PATH | `which` returns `None`. Four copies exist on disk and are reported; three of them sit on the sandbox device |
-| No build directory | `/yocto` exists, is root-owned and holds **zero** entries |
+| ~~No build directory~~ — **corrected 2026-09-20** | This row measured `/yocto`, which was the wrong path and no longer exists at all. The build area is on the sandbox: `/home/google/SymonSaysLLC/Projects/yocto`, 28 entries, carrying `openembedded-core`, `bitbake`, `meta-openembedded`, `meta-symoneural`, `meta-symoneural-bsp`, `downloads` and `sstate-cache`. **This blocker is withdrawn**; the other three stand |
 | `meta-mingw` is PRESENT, not ACQUIRED | Two copies, both under `~/.cache/oematch/layers`, both with `conf/layer.conf`, both dated 2026-08-21. No pin under `/mnt/SymonSaySource` names it: 108 pins searched, none matched | <!-- gate-allow: no-august — a measured mtime read off disk, quoted as the reason the material is refused, not material built from -->
+
+**Three blockers, not four.** The build-directory row above was wrong: it asked `/yocto`, a path
+settled as obsolete on 2026-09-19 and since removed from fstab. `OE_BUILD_DIR` now reads the
+sandbox, so a windows-target report carries the real directory listing instead of a
+`FileNotFoundError` about a decision. Nothing else changed — no compiler appeared and `meta-mingw`
+is still not acquired.
 
 A cache is not a tree the estate owns. Nothing is built from one, and the dating puts both
 copies in material that is not to be used. Acquiring `meta-mingw` — recording its commit, its

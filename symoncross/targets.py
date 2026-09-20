@@ -75,8 +75,12 @@ LAYER_ROOTS: tuple[tuple[str, str, int], ...] = (
     ("/home/google/.cache/oematch/layers", "cache", 3),
     ("/home/google/symoneural-staging/yocto", "staging", 4),
     ("/home/google/SymonSaysLLC/Projects/yocto", "sandbox", 4),
-    ("/yocto", "mount", 4),
 )
+# `/yocto` was the fourth root here, kind "mount". It is gone: settled 2026-09-19 as obsolete
+# and not coming back, its fstab entry removed, and the directory does not exist. Scanning for
+# it every call cost a stat and reported "root absent" forever, which is not a finding — it is
+# a path this estate has decided about. Keeping the root would also be recreating an obsolete
+# mountpoint in the only sense software can: by continuing to look for one.
 
 # Enumerating every layer in a 300-entry download cache buries the one distinction this function
 # exists to draw. Layers outside a cache are always listed individually; from a cache only the
@@ -92,7 +96,15 @@ BITBAKE_PATHS: tuple[str, ...] = (
     "/home/google/symonsaylearn/upstream/build/bitbake",
 )
 
-OE_BUILD_DIR = Path("/yocto")
+# The build area of the layered build system. This pointed at `/yocto`, which no longer exists
+# and never will again, so every windows-target report carried "FileNotFoundError" as its build
+# directory evidence — an error about a decision rather than a fact about the build.
+#
+# The acquired trees live on the build host, read-only (§3.1a), which on this machine is the
+# sandbox. Overridable, like DIST_ROOT and SOURCE_ROOT above, because a path this specific is a
+# property of one machine.
+OE_BUILD_DIR = Path(os.environ.get("SYM_CROSS_OE_BUILD_DIR",
+                                   "/home/google/SymonSaysLLC/Projects/yocto"))
 
 DARWIN_BUNDLE = Path(
     os.environ.get("SYM_CROSS_DARWIN_BUNDLE",
