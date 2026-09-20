@@ -90,6 +90,17 @@ def devices(_: Authed) -> dict[str, Any]:
     return {"devices": _guard(D.devices)}
 
 
+@app.get("/api/symonprobe/pinned")
+def pinned(_: Authed, venv: str = "/home/google/.venvs/vllm-0271-cu130") -> dict[str, Any]:
+    """§3.1b-iii: every version this probe's answers rest on, against its recorded pin.
+
+    Per-venv: the driver row is the same whichever venv is asked, the torch and vLLM rows are
+    not. A row with `pin: null` is something the estate has no version record for, reported
+    rather than omitted.
+    """
+    return _guard(R.pinned, venv)
+
+
 @app.get("/api/symonprobe/venvs")
 def venvs(_: Authed) -> dict[str, Any]:
     """Python environments on this host."""
