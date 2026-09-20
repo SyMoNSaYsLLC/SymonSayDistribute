@@ -26,3 +26,11 @@ what a licence class even was.
 The `no-divergent-copy` gate refused a commit over it, which is how it was found. The estate
 now holds one canonical copy of each tool. The others are removed by commit and recoverable
 from history like anything else.
+
+## Where this leads
+
+Up to [symoneural-learn.md](../symoneural-learn.md) — the map for this branch.
+
+No directory sits below this one, so the chain ends at this document.
+§3.7 requires a final document to say so rather than leave the reader
+at an unexplained stop.

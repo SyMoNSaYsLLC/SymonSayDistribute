@@ -64,10 +64,31 @@ an attempt to build this package. A recipe that cannot be satisfied must still p
 cleanly and fail only when someone asks for it, which is why the refusal is in
 `do_compile`.
 
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symoneural-learn`](symoneural-learn/symoneural-learn.md) | build recipes — 1 at generation time |
+| [`symoneural-learn-web`](symoneural-learn-web/symoneural-learn-web.md) | build recipes — 1 at generation time |
+
 ## Onward
 
-The runtime this composes is documented in
-`work/runtimes/api/app/symoneural_api/symoneural_api.md` (the gateway and its
-endpoint register) and `work/runtimes/llm/hostrun/hostrun.md` (the chat unit and its
-bring-up ladder). Read the gateway document first; it holds the endpoint register and
-the credential model that everything else assumes.
+Onward, in the order the code runs: [`symoneural-learn`](symoneural-learn/symoneural-learn.md), [`symoneural-learn-web`](symoneural-learn-web/symoneural-learn-web.md).
+
+Up to [recipes.md](../recipes.md) — the map for this branch.
+
+The runtime this composes is documented in [`gateway`](../../gateway/gateway.md) (the gateway
+and its endpoint register) and [`runtime`](../../runtime/runtime.md) (the chat unit and its
+bring-up ladder). Read the gateway document first; it holds the endpoint register and the
+credential model that everything else assumes.
+
+**Corrected 2026-09-20:** this paragraph used to name
+`work/runtimes/api/app/symoneural_api/symoneural_api.md` and
+`work/runtimes/llm/hostrun/hostrun.md`, written relative. Both files are real — they are under
+`/home/google/symonsaylearn/work/runtimes/`, a separate repository outside the four trees — but
+nothing under this worktree resolves those relative paths, so from here they led nowhere. §3.7
+chains documents inside a repository, and this branch carries its own copies of both:
+[`gateway`](../../gateway/gateway.md) and [`runtime`](../../runtime/runtime.md). `runtime.md`
+carried the same reference and was corrected with it.

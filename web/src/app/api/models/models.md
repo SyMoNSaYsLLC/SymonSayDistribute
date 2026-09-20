@@ -6,9 +6,14 @@
 
 **Consumed by:** [`gateway`](../../../../../gateway/gateway.md)
 
+## Directories
+
+| Directory | Holds |
+|---|---|
+| [`[id]`]([id]/[id].md) | `route.ts` |
+
 ## Where this leads
 
 Up to [api.md](../api.md), the map for this unit.
 
-Nothing here calls into another directory of this unit, so the chain ends at this
-document. §3.7 requires that to be said rather than left as a dead end.
+Onward, in the order the code runs: [`[id]`]([id]/[id].md).

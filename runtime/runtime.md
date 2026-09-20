@@ -101,6 +101,23 @@ shell matches **that shell's own command line**, because the pattern is in it. U
 
 ## Onward
 
-The gateway that consumes this unit is documented in
-`work/runtimes/api/app/symoneural_api/symoneural_api.md`. Read that next; it holds
-the endpoint register and the credential model.
+Up to [symoneural-learn.md](../symoneural-learn.md), the map for this branch.
+
+The gateway that consumes this unit is [`gateway`](../gateway/gateway.md). Read that
+next; it holds the endpoint register and the credential model.
+
+**Corrected 2026-09-20:** this section used to send the reader to
+`work/runtimes/api/app/symoneural_api/symoneural_api.md`, written relative. That file is
+real — it is at `/home/google/symonsaylearn/work/runtimes/api/app/symoneural_api/symoneural_api.md`,
+in a separate repository outside the four trees — but nothing under this worktree resolves
+that relative path, so from here the reference led nowhere. It is kept below, absolute, and
+the §3.7 chain now points at the copy that is *in this branch*.
+
+The same reference appeared in [`recipes-learn`](../recipes/recipes-learn/recipes-learn.md)
+and was corrected with it.
+
+`/home/google/symonsaylearn/work/runtimes/` is where the process on 9001 actually runs from;
+[`gateway`](../gateway/gateway.md) records that divergence and what closing it means.
+
+No directory sits below this one, so the chain through the filesystem ends at this
+document; it continues sideways into the gateway, above.

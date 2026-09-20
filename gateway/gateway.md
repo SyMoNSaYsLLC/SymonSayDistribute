@@ -262,3 +262,17 @@ change exists: the fix was live and unshipped.
 With it ported, the two `dialect.py` files differ by the licence header and nothing else. The
 divergence was one patch wide, and the useful part of finding that out was learning it was not
 two gateways.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symoneural_gateway`](symoneural_gateway/symoneural_gateway.md) | the capability this unit provides — `dialect.py`, `gateway.py`, `models.py`, `worker.py` |
+
+## Where this leads
+
+Up to [symoneural-learn.md](../symoneural-learn.md) — the map for this branch.
+
+Onward, in the order the code runs: [`symoneural_gateway`](symoneural_gateway/symoneural_gateway.md).
