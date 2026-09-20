@@ -18,7 +18,7 @@ def client(monkeypatch):
     # Off-loopback, so `headers=auth()` in this file actually exercises the guard.
     # On a loopback bind the guard returns before comparing anything, which would
     # make every authenticated test here pass with a wrong token or none at all.
-    monkeypatch.setenv("SYM_IMAGE_HOST", "0.0.0.0")
+    monkeypatch.setenv("SYM_SYMONIMAGE_HOST", "0.0.0.0")
     monkeypatch.setenv("SYM_SYMONIMAGE_TOKEN", TOKEN)
     import service
     importlib.reload(service)
@@ -130,7 +130,7 @@ def test_health_is_public_and_the_rest_is_closed(monkeypatch):
     """Off-loopback the bind is reachable, so the token is required and an unset one closes the
     unit: becoming reachable through a config change must not make it public through that same
     change. The host is set before the reload so the guard is in its off-loopback mode."""
-    monkeypatch.setenv("SYM_IMAGE_HOST", "0.0.0.0")
+    monkeypatch.setenv("SYM_SYMONIMAGE_HOST", "0.0.0.0")
     monkeypatch.delenv("SYM_SYMONIMAGE_TOKEN", raising=False)
     import service
     importlib.reload(service)
@@ -142,7 +142,7 @@ def test_health_is_public_and_the_rest_is_closed(monkeypatch):
 def test_loopback_needs_no_token(monkeypatch):
     """The other half of the contract: on the loopback default no token is asked for, because a
     token on a 127.0.0.1 bind defends only against a caller who could already read the token."""
-    monkeypatch.delenv("SYM_IMAGE_HOST", raising=False)
+    monkeypatch.delenv("SYM_SYMONIMAGE_HOST", raising=False)
     monkeypatch.delenv("SYM_SYMONIMAGE_TOKEN", raising=False)
     import service
     importlib.reload(service)
@@ -159,3 +159,26 @@ def test_ready_reports_everything_generate_would_check_without_generating(client
     assert set(b) >= {"runtime", "weights", "room", "ready", "blocked_on"}
     if not b["ready"]:
         assert b["blocked_on"], "not ready but nothing named as blocking"
+
+
+def test_this_unit_reads_only_its_own_namespace():
+    """One service's namespace must not reach another's.
+
+    symonimage is 8822 and holds SYM_SYMONIMAGE_TOKEN; the registry image unit is 8809 and
+    keeps SYM_IMAGE_TOKEN. The token was split on 2026-09-19 and the HOST variable was missed,
+    so this unit read SYM_IMAGE_HOST — and under §3.2a the bind address is what decides whether
+    a credential is required, which made the miss worse than a naming nit: exposing 8809 would
+    have moved this unit off loopback with it.
+    """
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "service.py").read_text()
+    for line in src.splitlines():
+        if line.strip().startswith("#"):
+            continue
+        # Bind identity and credential only. SYM_IMAGE_BIN / _STORE / _OUT are deliberately
+        # left alone: they name the image runtime and its weights store, which are resources
+        # rather than this unit's identity, and none of them decides authorisation.
+        for bled in ("SYM_IMAGE_HOST", "SYM_IMAGE_PORT", "SYM_IMAGE_TOKEN"):
+            assert bled not in line, f"{bled} in: {line.strip()}"
+    assert "SYM_SYMONIMAGE_HOST" in src
+    assert "SYM_SYMONIMAGE_TOKEN" in src

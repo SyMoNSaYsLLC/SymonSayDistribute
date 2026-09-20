@@ -79,6 +79,21 @@ refuses.
 
 Health is public; the rest need `SYM_SYMONIMAGE_TOKEN`, and an unset token closes the unit.
 
+**This unit reads only its own namespace.** `SYM_SYMONIMAGE_TOKEN`, `SYM_SYMONIMAGE_HOST`,
+`SYM_SYMONIMAGE_PORT`. The `SYM_IMAGE_*` namespace belongs to the registry image unit on 8809,
+which keeps `SYM_IMAGE_TOKEN`.
+
+The token was split on 2026-09-19 so that one service's credential could not authorise another.
+The **host and port were missed**, and that mattered more than a naming nit: §3.2a makes the bind
+address the thing that decides whether a credential is required at all, so exposing 8809 by
+setting `SYM_IMAGE_HOST` would have moved this unit off loopback with it. Corrected 2026-09-20;
+a test reads `service.py` and fails if any `SYM_IMAGE_HOST`, `SYM_IMAGE_PORT` or
+`SYM_IMAGE_TOKEN` appears in it.
+
+`SYM_IMAGE_BIN`, `SYM_IMAGE_STORE` and `SYM_IMAGE_OUT` are deliberately unchanged. They name the
+image runtime, its weights store and its output directory — resources rather than this unit's
+identity — and none of them decides authorisation.
+
 Three public callables carry no route and say so in `NOT_EXPOSED`: `binary` and `store` resolve
 environment variables and are reported inside `version` and `weights`; `card` is served inside
 `room`, because free memory is only meaningful beside what a generation needs.

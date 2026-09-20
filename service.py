@@ -55,7 +55,14 @@ def _open_on_loopback() -> bool:
     unset one closes the unit: a unit that becomes reachable through a config change must not
     become public through that same change.
     """
-    host = (os.environ.get("SYM_IMAGE_HOST") or "127.0.0.1").strip()
+    # SYM_SYMONIMAGE_HOST, not SYM_IMAGE_HOST. The IMAGE namespace belongs to the registry
+    # image unit on 8809, which keeps SYM_IMAGE_TOKEN; this unit is symonimage on 8822 and was
+    # split onto SYM_SYMONIMAGE_TOKEN so that one service's credential namespace cannot
+    # accidentally authorise another. The TOKEN was split and the HOST was missed — and §3.2a
+    # makes the bind address the thing that DECIDES whether a credential is required at all,
+    # so exposing 8809 by setting SYM_IMAGE_HOST would have moved this unit off loopback too.
+    # Every sibling reads its own: SYM_DEVICE_HOST, SYM_SDK_HOST, SYM_PROBE_HOST, SYM_BOARD_HOST.
+    host = (os.environ.get("SYM_SYMONIMAGE_HOST") or "127.0.0.1").strip()
     if host.lower() in ("localhost", ""):
         return True
     try:
@@ -151,8 +158,8 @@ def generate(body: GenerateIn, _: Authed) -> dict[str, Any]:
 
 def main() -> None:
     import uvicorn
-    uvicorn.run(app, host=os.environ.get("SYM_IMAGE_HOST", "127.0.0.1"),
-                port=int(os.environ.get("SYM_IMAGE_PORT", "8822")))
+    uvicorn.run(app, host=os.environ.get("SYM_SYMONIMAGE_HOST", "127.0.0.1"),
+                port=int(os.environ.get("SYM_SYMONIMAGE_PORT", "8822")))
 
 
 if __name__ == "__main__":
