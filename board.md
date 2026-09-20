@@ -76,13 +76,46 @@ same fingerprint.
 If the entry ever reports `STATIC`, the key is sitting in the client's config file on disk. That
 is exactly what `helper-script` exists to avoid, and the board says so rather than passing it.
 
+## Nothing it runs is run blind (§3.1b-iii)
+
+The board shells out to five programs it does not own, and every `[live]` line rests on one of
+them. `symon-board pinned`, and `GET /api/board/pinned`, run each one and compare what it
+reports to the pin in `SymonSaySource`. Measured 2026-09-20:
+
+| Program | Where | Pin | Observed | State |
+|---|---|---|---|---|
+| `nvidia-smi` | `card()` — the card rows in `[live]` | `platform/pins/open-gpu-kernel-modules.json` → 615.71.09 | 615.71.09 | **MATCHES** |
+| `bash` | the `sh("bash","-lc",…)` in `listener()` and both client checks | none | 5.2.37 | **NO-PIN** |
+| `ss` | `listener()` — which pid holds a port | none | 6.15.0 (iproute2) | **NO-PIN** |
+| `grep` | `listener()` — filters `ss -lntp` | none | 3.11 | **NO-PIN** |
+| `curl` | the gateway and web-console health probes | none | 8.14.1 | **NO-PIN** |
+
+**The pin that governs does not nominally name the binary, and that is said rather than
+assumed.** `open-gpu-kernel-modules` is the open GPU *kernel module* source; `nvidia-smi` is
+driver userspace. They ship on one release train and the strings are identical —
+`nvidia-smi --version` reports the same KMD version — which is why this pin governs it. The
+reasoning is written down because a reader checking the pin file will not find the word
+`nvidia-smi` in it.
+
+**Four gaps, named not omitted.** bash, ss, grep and curl have no pin among the 108. A program
+with no pin is still given a row saying so: an omitted program reads as one with nothing to
+check, which is the exact impression §3.1b-iii exists to remove. Their *licence* position is
+settled — the ship gate already classifies bash and coreutils as `INVOKED_NOT_LINKED` for
+`board/v1.3.0` — but a licence classification is not a version record, and this rule is about
+the version. `curl` is the furthest from the rule's end state because it reaches the network as
+well as the disk; it is closed by a pin, or by replacing the probe with `urllib`, which this
+estate already carries.
+
+`ss` deserves its own line: `listener()` parses `pid=` out of its output, so a change to that
+format turns every port into `DOWN` with nothing to say why.
+
 ## Releases
 
 Tagged `board/v<version>`.
 
 ## Over HTTP
 
-Eight routes on `127.0.0.1:8811`, the port `/models/control.board` assigns to `board`. Health
+Nine routes on `127.0.0.1:8811`, the port `/models/control.board` assigns to `board`. Health
 is public; everything else needs `SYM_BOARD_TOKEN`, and the service answers 503 rather than
 opening up when that variable is unset — an unconfigured board is closed, not permissive.
 
@@ -93,9 +126,23 @@ opening up when that variable is unset — an unconfigured board is closed, not 
     GET  /api/board/diff                      where live disagrees with the file on disk
     GET  /api/board/check                     every path exists, every port is a port,
                                               nothing is still marked STALE
+    GET  /api/board/pinned                    every external program the board runs, against
+                                              the version SymonSaySource records for it
     GET  /api/board/client                    which surface currently holds the credential
     POST /api/board/client/{surface}          move the credential between web and the client
 
 `settings` takes an optional `?section=` and reports the `#@tree:` attribution beside each
 value, so a setting is never separated from the tree that is allowed to change it. No route
 returns a credential: where a key exists, the board reports its fingerprint and nothing else.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`tests`](tests/tests.md).
