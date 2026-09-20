@@ -174,3 +174,16 @@ route that adds a tool to a run in flight. That absence is the design, not an om
 
 **Known drift on this host.** The process serving 8813 was started before `plugins` landed and
 answers 404 for it; the route is in this branch. Restart the unit to pick it up.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symoneural_agents`](symoneural_agents/symoneural_agents.md) | the capability this unit provides — `agent.py`, `connectors.py`, `plugins.py`, `registry.py` … +1 |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 3 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symoneural_agents`](symoneural_agents/symoneural_agents.md), [`tests`](tests/tests.md).
