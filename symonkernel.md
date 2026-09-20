@@ -276,3 +276,16 @@ host's real kernels, headers, module manager and compilers. Nothing is serving o
 unit is not registered on the board, and no consumer has called it. `SYM_KERNEL_TOKEN` is
 unprovisioned, which is the correct state for a loopback bind and would close the unit the
 moment the bind moved off loopback.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonkernel`](symonkernel/symonkernel.md) | the capability this unit provides — `kernel.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonkernel`](symonkernel/symonkernel.md), [`tests`](tests/tests.md).
