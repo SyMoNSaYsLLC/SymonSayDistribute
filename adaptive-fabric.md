@@ -104,3 +104,16 @@ fabric will not route to itself or to the control plane.
 ## Releases
 
 Tagged `adaptive-fabric/v<version>`.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symoneural_fabric`](symoneural_fabric/symoneural_fabric.md) | the capability this unit provides — `route.py`, `wiring.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symoneural_fabric`](symoneural_fabric/symoneural_fabric.md), [`tests`](tests/tests.md).
