@@ -83,6 +83,7 @@ different fix, and a caller told only "no" would have to go and find that out fo
     GET /api/symonsdk/venvs       every virtualenv, and whether its interpreter still runs
     GET /api/symonsdk/sdks        the non-python SDK trees: present, size, versions on disk
     GET /api/symonsdk/sources     source trees to build from, with git status and manifest
+    GET /api/symonsdk/pinned      every usable toolchain against the pin SymonSaySource records
     GET /api/symonsdk/can-build   ?ecosystem=<name> — yes, or which part is missing
 
 Health is public; the rest need `SYM_SDK_TOKEN` **only off loopback**, and an unset token then
@@ -93,7 +94,7 @@ address decides that at runtime, not a convention in prose (rules §3.2a).
 An unknown ecosystem is a `400` carrying the list of names this host does know, because a
 caller that guessed wrong needs the vocabulary, not a refusal.
 
-`NOT_EXPOSED` is declared and **empty**: all five capabilities carry a route. It is declared
+`NOT_EXPOSED` is declared and **empty**: all six capabilities carry a route. It is declared
 rather than omitted so the question `endpoints-current` asks is answered rather than unasked.
 
 ## Configuration
@@ -146,6 +147,42 @@ build from would bury the three that are.
 **Buildable now:** `c`, `c++`, `cmake`, `go`, `java`, `python`, `ruby`, `rust`, `swift`.
 **Not:** `node` (missing `npm`), `dotnet` (missing `dotnet` on PATH), `php` (missing `php`).
 
+## Toolchains against their pins (§3.1b-iii)
+
+`pinned()` and `GET /api/symonsdk/pinned` already do what §3.1b-iii asks: every toolchain this
+unit runs is compared to the pin `SymonSaySource` records for it, and four tests cover the
+classifier — including one that injects a fake pin and requires `DRIFTED` to come back naming
+both versions.
+
+**This unit was counted as having nothing on 2026-09-20, and that count was wrong.** The
+measurement grepped for files containing the literal string `pins/`. This code never contains
+it: `PIN_ROOT` is `/mnt/SymonSaySource` and the registry is found with `rglob("*.json")`
+filtered on `"pin" in path`. A grep artifact, not a gap — recorded here because a false zero in
+a compliance count is worse than a true one, and somebody will run that grep again.
+
+Live state, read from this code on 2026-09-20: **108 pins available, 21 usable toolchains
+checked, 0 MATCHES.**
+
+| State | Toolchains |
+|---|---|
+| `DRIFTED` | `ninja` (pin 1.13.2, host 1.13.0) |
+| `UNRESOLVED-PIN` | `node` (pin records `UNRESOLVED`, host 24.19.0) |
+| `UNRECORDED` | cargo, cc, cmake, dotnet, g++, gcc, git, go, java, javac, make, perl, pip3, pkg-config, python3, ruby, rustc, swift, swiftc — **19 of 21** |
+
+**The gap this unit still has, named and not closed here.** Nineteen of the twenty-one build
+tools that work on this host have no pin in `SymonSaySource`, so nineteen of them can move
+underneath the estate with nothing to notice. `pinned()` reports each as `UNRECORDED`, which is
+the honest answer, but reporting a gap is not closing it — closing it is nineteen pins, and a
+pin is a provenance record (upstream, full SHA, declared licence with its checksum, acquisition
+date), not something a test can invent.
+
+**The one piece of machinery still missing here.** None of the four tests goes red on the
+estate's *real* state: they exercise the classifier against injected pins, and the live
+`DRIFTED` row for `ninja` is asserted by nothing. `board`, `symonengine` and `symonprobe` now
+carry a `KNOWN_DRIFT` table for exactly this — today's disagreement recorded with its date, so
+that tomorrow's *new* movement fails. Bringing `pinned()` onto that shape is adjacent work and
+is named rather than done, because it changes an interface other work is already reading.
+
 ## Placement
 
     placement-triage prospect symonsdk --sources python-stdlib@PSF-2.0,fastapi@MIT
@@ -175,7 +212,7 @@ The same reasoning the ship gate spells `INVOKED_NOT_LINKED`.
 
 ## Testing
 
-24 tests, and the ones that matter are paired: each asserts the right answer, and its partner
+28 tests, and the ones that matter are paired: each asserts the right answer, and its partner
 asserts that the wrong implementation would have produced a different one. A test that passes
 whether or not the code is right has gated nothing.
 
@@ -209,7 +246,7 @@ Tagged `symonsdk/v<version>`.
 
 ## Status
 
-**Built and tested; never started as a process.** Its 24 tests pass and every figure in *What
+**Built and tested; never started as a process.** Its 28 tests pass and every figure in *What
 it found on this host* came out of this code on 2026-09-19. Each line below was probed, not
 recalled:
 
@@ -227,9 +264,25 @@ Adjacent and deliberately not built here: registering the unit on the board and 
 under supervision; a route for a single named toolchain; a per-directory document for
 `symonsdk/` and `tests/` under §3.7, which no component on this tree currently carries.
 
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonsdk`](symonsdk/symonsdk.md) | the capability this unit provides — `toolchains.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
 ## Where the flow ends
 
-It ends here, and that is the whole chain. This branch is one component: the capability
+Two chains meet in this heading and they end in different places, so both are said.
+
+**The document chain does not end here.** Inside this branch it goes on into
+[`symonsdk`](symonsdk/symonsdk.md), the capability, and then
+[`tests`](tests/tests.md), what proves it — in that order, because that is the order the code
+runs. Those two documents are the last in the branch.
+
+**The component chain does end here.** It ends here, and that is the whole chain. This branch is one component: the capability
 (`symonsdk/toolchains.py`), the surface over it (`service.py`), and its tests. Nothing in this
 branch hands off to another document, because nothing in this branch calls another component —
 every answer it gives is read from this host directly, on purpose. `symonsdk` deliberately does
