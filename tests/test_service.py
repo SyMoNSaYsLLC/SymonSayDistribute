@@ -186,8 +186,10 @@ def test_a_program_with_no_pin_is_named_as_a_gap_not_quietly_passed():
     for r in p["programs"]:
         if r["state"] == "NO-PIN":
             assert r["pin"] is None and r["pin_file"] is None
-            assert "GAP" in r["pin_note"] and "Closed by" in r["pin_note"] or \
-                   "missing" in r["pin_note"], r["pin_note"]
+            # Parenthesised deliberately: `A and B or C` binds as `(A and B) or C`, which
+            # let a note saying only "missing" satisfy this and never test the rest.
+            assert "GAP" in r["pin_note"], r["pin_note"]
+            assert "Closed by" in r["pin_note"] or "Closed" in r["pin_note"], r["pin_note"]
 
 
 def test_a_missing_pin_registry_does_not_look_like_agreement(monkeypatch, tmp_path):

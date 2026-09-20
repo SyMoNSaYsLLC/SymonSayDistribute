@@ -498,7 +498,9 @@ INVOKED: tuple[dict, ...] = (
      "pin": None,
      "pin_note": "GAP: no pin for GNU grep. Same INVOKED_NOT_LINKED licence position as bash "
                  "(coreutils is already classified for board/v1.3.0); the version is what is "
-                 "missing."},
+                 "missing. Closed by a grep pin under SymonSaySource, or by dropping the "
+                 "pipeline entirely — listener() already parses `ss` output in python, so the "
+                 "grep in front of it filters nothing python could not."},
     {"program": "curl", "argv": ("curl", "--version"),
      "where": "client_3p() and client_surfaces() — the gateway and web console health probes",
      "pin": None,

@@ -104,7 +104,9 @@ settled — the ship gate already classifies bash and coreutils as `INVOKED_NOT_
 `board/v1.3.0` — but a licence classification is not a version record, and this rule is about
 the version. `curl` is the furthest from the rule's end state because it reaches the network as
 well as the disk; it is closed by a pin, or by replacing the probe with `urllib`, which this
-estate already carries.
+estate already carries. `grep` is closed by a pin, or by dropping the pipeline — `listener()`
+already parses `ss` output in python, so the grep in front of it filters nothing python
+could not.
 
 `ss` deserves its own line: `listener()` parses `pid=` out of its output, so a change to that
 format turns every port into `DOWN` with nothing to say why.
