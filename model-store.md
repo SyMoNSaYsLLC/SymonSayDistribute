@@ -78,3 +78,16 @@ between corruption and somebody having added something.
 
 It is a POST because it reads every byte of a multi-gigabyte checkpoint, which is not something
 to do on a page load.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`store`](store/store.md) | `inspect.py`, `place.py`, `verify.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`store`](store/store.md), [`tests`](tests/tests.md).
