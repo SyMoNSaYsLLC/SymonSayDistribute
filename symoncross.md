@@ -278,6 +278,18 @@ and `046a90b0e9b7`: exactly what the pins record. The pins settle it in their ow
 project's own copy of its build stack should BE the build stack, not a stale souvenir"*, authority
 *"Garrett decision (overnight Phase 8): match the stack in use"*.
 
+**A second component agrees, independently.** `symonbuild` searches the machine for bitbake
+copies and resolves them against the same pin, in code this change never touched. Asked live:
+
+    count           8 copies, 2 versions (2.19.1, 2.8.1), 2 devices
+    version_spread  "no copy is canonical by version alone"
+    canonical       Projects/symoneural-bootstrap-master/bitbake/bin/bitbake
+    canonical_note  "the pin resolves the spread: exactly one copy is at the pinned revision"
+
+`Projects/yocto/bitbake` reports **2.8.1**, which the pin records as
+`intended_tag_version_previous`. The souvenir is not merely undated — it is the superseded
+stack.
+
 So the pinned stack is the build stack, however much more like a build directory the souvenir
 looks. Two tests hold the line: one asserts the default's checkouts equal the recorded
 `intended_revision`, the other that they are not August-dated. Nothing else changed — no compiler
