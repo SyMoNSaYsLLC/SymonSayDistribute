@@ -81,3 +81,15 @@ printed. Uninstall moves ours aside too rather than deleting it.
 
 This branch cuts its own releases, tagged `gates/v<version>`. A bare version number would be
 ambiguous the moment a second thing sits at the same number.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`gates`](gates/gates.md) | `claim.sh`, `contract-declared.sh`, `endpoints-current.sh`, `exit-code-direct.sh` … +12 |
+
+## Where this leads
+
+Onward, in the order the code runs: [`gates`](gates/gates.md).
