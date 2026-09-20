@@ -165,7 +165,7 @@ checked, 0 MATCHES.**
 
 | State | Toolchains |
 |---|---|
-| `DRIFTED` | `ninja` (pin 1.13.2, host 1.13.0) |
+| `DRIFTED`, recorded | `ninja` (pin 1.13.2, host 1.13.0) |
 | `UNRESOLVED-PIN` | `node` (pin records `UNRESOLVED`, host 24.19.0) |
 | `UNRECORDED` | cargo, cc, cmake, dotnet, g++, gcc, git, go, java, javac, make, perl, pip3, pkg-config, python3, ruby, rustc, swift, swiftc — **19 of 21** |
 
@@ -176,12 +176,25 @@ the honest answer, but reporting a gap is not closing it — closing it is ninet
 pin is a provenance record (upstream, full SHA, declared licence with its checksum, acquisition
 date), not something a test can invent.
 
-**The one piece of machinery still missing here.** None of the four tests goes red on the
-estate's *real* state: they exercise the classifier against injected pins, and the live
-`DRIFTED` row for `ninja` is asserted by nothing. `board`, `symonengine` and `symonprobe` now
-carry a `KNOWN_DRIFT` table for exactly this — today's disagreement recorded with its date, so
-that tomorrow's *new* movement fails. Bringing `pinned()` onto that shape is adjacent work and
-is named rather than done, because it changes an interface other work is already reading.
+**Drift is now recorded, so a new movement fails.** Until 2026-09-20 none of the tests went red
+on the estate's *real* state — they exercised the classifier against injected pins, and the live
+`DRIFTED` row for `ninja` was asserted by nothing. `pinned()` now carries the same `KNOWN_DRIFT`
+table `board`, `symonengine` and `symonprobe` use: today's disagreement recorded with its date,
+so that tomorrow's *new* movement fails.
+
+The assertion is `new_drift == []`, not "no drift". Demanding zero drift would demand the rule
+be broken — pin/checkout drift is preserved, never reconciled, and no pin was edited nor any
+host moved. What must hold is that every movement has been looked at.
+
+A green result there would prove nothing on its own, so a partner test removes the `ninja` entry
+and requires the same host to come back naming `ninja` with both versions in the reason.
+
+**`node` is no longer counted as drift.** Its pin file exists but records no version, so nothing
+was compared; calling that "drifted" claimed knowledge this unit does not have. It now appears
+in `unresolved`, and a test asserts the two lists never overlap.
+
+    matched []  ·  drifted ['ninja']  ·  recorded_drift ['ninja']  ·  new_drift []
+    unresolved ['node']  ·  unrecorded 19
 
 ## Placement
 

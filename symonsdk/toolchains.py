@@ -210,6 +210,24 @@ PIN_ALIASES = {"node": "nodejs", "rustc": "rust", "cargo": "rust", "cc": "gcc",
                "g++": "gcc", "swiftc": "swift", "pip3": "python3"}
 
 
+# Drift somebody has actually looked at, keyed (tool, pinned, observed release).
+#
+# Without this, `drifted` cannot tell a movement that was examined and left alone from one that
+# happened this morning — and the four sibling components already draw that line. §3.1b-iii's
+# whole point is that an upgrade underneath a component is caught by a test rather than by a
+# user, and a list nothing asserts against catches nothing.
+#
+# Pin/checkout drift is PRESERVED, not reconciled: no pin is edited to match a host and no host
+# is moved to match a pin. Recording it is what makes the preservation deliberate.
+KNOWN_DRIFT: dict[tuple[str, str, str], str] = {
+    ("ninja", "1.13.2", "1.13.0"):
+        "2026-09-20: SymonSaySource/build/pins/ninja.json records 1.13.2; this host reports "
+        "1.13.0.git.kitware.jobserver-pipe-1, which is 1.13.0 carrying a vendor suffix. The "
+        "suffix is not what differs — the release is genuinely older than the pin. Preserved "
+        "rather than reconciled: provenance decides which of the two moves.",
+}
+
+
 def _pins() -> dict[str, dict[str, Any]]:
     """Every pin SymonSaySource records, by component name. Read, never assumed (§3.1b-i)."""
     import json
@@ -243,6 +261,7 @@ def pinned() -> dict[str, Any]:
     pins = _pins()
     found = toolchains().get("tools", [])
     rows, matched, drifted, unrecorded = [], [], [], []
+    unresolved, recorded_drift, new_drift = [], [], []
     for tc in found:
         name = tc.get("name")
         if not tc.get("usable"):
@@ -260,16 +279,33 @@ def pinned() -> dict[str, Any]:
         want = str(pin.get("intended_tag_version") or pin.get("intended_revision") or "")
         rel = tc.get("release") or _release(observed or "") or (observed or "")
         agree = bool(want) and want not in ("UNRESOLVED", "?") and rel.startswith(want)
+        unresolved_pin = want in ("UNRESOLVED", "?", "")
+        state = "MATCHES" if agree else ("UNRESOLVED-PIN" if unresolved_pin else "DRIFTED")
+        recorded = (name, want, rel) in KNOWN_DRIFT
+        why = ("agrees with the recorded pin" if agree else
+               f"pin records {want!r}, this host has {rel!r}")
+        if state == "DRIFTED":
+            why = (f"{why}. {KNOWN_DRIFT[(name, want, rel)]}" if recorded else
+                   f"{why}. That movement is in no KNOWN_DRIFT entry, so it happened after the "
+                   f"last time anyone looked.")
         rows.append({"tool": name, "observed": observed, "release": rel, "pinned": want,
                      "pin_file": pin.get("pin_file"), "component": pin.get("component"),
-                     "state": "MATCHES" if agree else
-                              ("UNRESOLVED-PIN" if want in ("UNRESOLVED", "?", "") else "DRIFTED"),
-                     "why": ("agrees with the recorded pin" if agree else
-                             f"pin records {want!r}, this host has {rel!r}")})
-        (matched if agree else drifted).append(name)
+                     "state": state, "recorded": recorded if state == "DRIFTED" else None,
+                     "why": why})
+        if agree:
+            matched.append(name)
+        elif unresolved_pin:
+            # A pin file exists but records no version. That is not drift: nothing was
+            # compared, so calling it drifted claims knowledge this unit does not have.
+            unresolved.append(name)
+        else:
+            drifted.append(name)
+            (recorded_drift if recorded else new_drift).append(name)
     return {"pin_root": PIN_ROOT, "pins_available": len(pins),
             "toolchains_checked": len(rows), "toolchains": rows,
             "matched": sorted(matched), "drifted": sorted(drifted),
+            "unresolved": sorted(unresolved),
+            "recorded_drift": sorted(recorded_drift), "new_drift": sorted(new_drift),
             "unrecorded": sorted(unrecorded),
             "why": (f"{len(unrecorded)} of {len(rows)} usable toolchains have no pin recorded. "
                     f"Under \u00a73.1b-iii each is a build input that can move without notice.")}

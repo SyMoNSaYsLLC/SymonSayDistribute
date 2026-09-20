@@ -364,3 +364,48 @@ def test_a_missing_pin_root_reports_everything_unrecorded(monkeypatch, tmp_path)
     assert p["pins_available"] == 0
     assert p["matched"] == [] and p["drifted"] == []
     assert len(p["unrecorded"]) == p["toolchains_checked"]
+
+
+def test_nothing_moved_underneath_us_without_being_recorded():
+    """The assertion §3.1b-iii actually wants: not 'no drift' but 'no UNRECORDED drift'.
+
+    Pin/checkout drift is preserved, so demanding zero drift would be demanding the rule be
+    broken. What must hold is that every movement has been looked at. A toolchain that changes
+    version with no KNOWN_DRIFT entry fails here, which is the whole point — otherwise the
+    upgrade is discovered by a user rather than by a test.
+    """
+    p = R.pinned()
+    assert p["new_drift"] == [], "; ".join(
+        r["why"] for r in p["toolchains"] if r["state"] == "DRIFTED" and not r.get("recorded"))
+
+
+def test_removing_a_ledger_entry_makes_that_drift_new_again(monkeypatch):
+    """The partner to the test above, and the reason it is not vacuous.
+
+    If nothing on this host ever drifted, `new_drift == []` would prove only that nothing is
+    compared. Remove the ninja entry and the same host must come back naming ninja.
+    """
+    live = R.pinned()
+    if "ninja" not in live["recorded_drift"]:
+        import pytest
+        pytest.skip("ninja is not drifting on this host; nothing to un-record")
+    monkeypatch.setattr(R, "KNOWN_DRIFT",
+                        {k: v for k, v in R.KNOWN_DRIFT.items() if k[0] != "ninja"})
+    p = R.pinned()
+    assert "ninja" in p["new_drift"], p["new_drift"]
+    row = next(r for r in p["toolchains"] if r["tool"] == "ninja")
+    assert row["pinned"] in row["why"] and row["release"] in row["why"], row["why"]
+
+
+def test_an_unresolved_pin_is_not_counted_as_drift():
+    """A pin file that records no version compared nothing, so it cannot have drifted.
+
+    node's pin is UNRESOLVED; it used to appear in `drifted` alongside genuinely moved
+    toolchains, which claimed knowledge this unit does not have.
+    """
+    p = R.pinned()
+    for r in p["toolchains"]:
+        if r["state"] == "UNRESOLVED-PIN":
+            assert r["tool"] not in p["drifted"], f"{r['tool']} is unresolved, not drifted"
+            assert r["tool"] in p["unresolved"]
+    assert not (set(p["drifted"]) & set(p["unresolved"]))
