@@ -104,3 +104,16 @@ its units unplaced, and a synthetic chain layers cleanly to 0/1/2.
 ## Releases
 
 Tagged `symonscope/v<version>`.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonscope`](symonscope/symonscope.md) | the capability this unit provides — `edges.py`, `layers.py`, `live.py`, `survey.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonscope`](symonscope/symonscope.md), [`tests`](tests/tests.md).
