@@ -318,7 +318,18 @@ registered on the board, or wired into the fabric. `SYM_CROSS_TOKEN` is unprovis
 a loopback bind is the correct state and requires nothing: there is no credential on loopback by
 design. Provisioning is only needed if the bind is ever moved off loopback.
 
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symoncross`](symoncross/symoncross.md) | the capability this unit provides — `targets.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
 ## Where this leads
+
+Onward, in the order the code runs: [`symoncross`](symoncross/symoncross.md), [`tests`](tests/tests.md).
 
 The `portability()` output is the input to any work on making these components run elsewhere,
 and it points at the components that own those call sites: `symonkernel`, `symondriver`,
