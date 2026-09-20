@@ -141,3 +141,16 @@ Tagged `symonloop/v<version>`.
 
 Built and tested. Wired on 8830. It records and decides; nothing yet fires the work — that is an
 adapter, deliberately outside the core.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonloop`](symonloop/symonloop.md) | the capability this unit provides — `ledger.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonloop`](symonloop/symonloop.md), [`tests`](tests/tests.md).
