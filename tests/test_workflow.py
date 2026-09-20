@@ -210,3 +210,51 @@ def test_the_scanner_redacts_every_secret_on_a_line_not_just_the_match():
     assert len(found) >= 2, found
     for f in found:
         assert a not in f["context"] and b not in f["context"], f["context"]
+
+
+# --- the scanner must see a credential in the format credentials are actually stored in -------
+
+def _scanner():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("ss", str(W / "secret-sweep.py"))
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    return m
+
+
+def _plausible_value(n, seed=20260920):
+    """Mixed case and digits — the shape a real credential has. A run of one character is
+    rejected by _plausible_secret as an identifier, correctly, so it is useless as a fixture."""
+    import random, string
+    rnd = random.Random(seed)
+    return "".join(rnd.choice(string.ascii_letters + string.digits) for _ in range(n))
+
+
+@pytest.mark.parametrize("label,template,should_hit", [
+    ("google client secret json", '{{"web":{{"client_secret":"GOCSPX-{v}"}}}}', True),
+    ("generic json password",     '{{"db": {{"password": "{v}"}}}}',            True),
+    ("json refresh token",        '{{"refresh_token":"{v}"}}',                  True),
+    ("yaml unquoted",             'client_secret: {v}',                         True),
+    ("ini style",                 'password = {v}',                             True),
+])
+def test_a_credential_in_a_real_format_is_seen(label, template, should_hit):
+    """A QUOTED key is the normal case, not the exception — every JSON credential document has
+    one. The pattern once required `key:` with nothing between, so `"client_secret": "..."`
+    matched nothing and a Google OAuth client secret on the remote was scanned and reported
+    clean. It was found by reading the filename, which is not a detection strategy.
+    """
+    ss = _scanner()
+    v = _plausible_value(28)
+    hits = list(ss.scan_text(template.format(v=v), "synthetic"))
+    assert bool(hits) is should_hit, f"{label}: {len(hits)} hits"
+    for h in hits:
+        assert v not in h["context"], "the value survived into the context"
+
+
+@pytest.mark.parametrize("text", [
+    "password: URLPatternComponentResult;",   # a TypeScript interface field
+    "password: my_database_password",         # a name, not a value
+])
+def test_an_identifier_is_not_reported_as_a_credential(text):
+    """The widening above must not cost the false-positive guard. A bare identifier has no
+    digits or no mixed case; a credential has both."""
+    assert list(_scanner().scan_text(text, "synthetic")) == []

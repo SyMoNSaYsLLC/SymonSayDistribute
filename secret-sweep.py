@@ -78,9 +78,16 @@ PATTERNS: list[tuple[str, str]] = [
     # An assignment whose NAME says secret and whose value is long enough to be one. The widest
     # net here, and the noisiest — which is why the kind says "assignment" rather than claiming
     # to know what it found.
+    ("google-oauth-client-secret", r"GOCSPX-[A-Za-z0-9_-]{20,}"),
+    # The key may be QUOTED, as it is in every JSON credential document: "client_secret": "...".
+    # Without the optional closing quote before the colon this matched `client_secret = x` and
+    # missed `"client_secret": "x"` entirely — so a Google OAuth client secret sitting on the
+    # remote was read by this scanner and produced nothing. Found 2026-09-20 by reading the
+    # FILENAME, which is not a detection strategy.
     ("secret-assignment",
      r"(?i)\b(?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|"
-     r"client[_-]?secret|private[_-]?key)\b\s*[:=]\s*['\"]?([A-Za-z0-9/+_=-]{16,})['\"]?"),
+     r"client[_-]?secret|private[_-]?key|refresh[_-]?token|session[_-]?token|"
+     r"bearer|authorization)\b['\"]?\s*[:=]\s*['\"]?([A-Za-z0-9/+_=.-]{16,})['\"]?"),
 ]
 COMPILED = [(k, re.compile(p)) for k, p in PATTERNS]
 
