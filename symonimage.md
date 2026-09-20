@@ -132,3 +132,16 @@ agent tools — `image_room`, `image_ready`, `image_generate`.
 **Not yet commissioned.** `SYM_SYMONIMAGE_TOKEN` is unprovisioned, so health answers and every
 other route returns 503 by design. Generating a secret is Garrett's alone (R13), and until he
 does the unit is wired but closed.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonimage`](symonimage/symonimage.md) | the capability this unit provides — `imager.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonimage`](symonimage/symonimage.md), [`tests`](tests/tests.md).
