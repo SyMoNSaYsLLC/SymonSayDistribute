@@ -142,3 +142,16 @@ Tagged `symonskill/v<version>`.
 
 Built and tested. Wired on 8833. Against the real collection: 6 found, 6 valid, 0 invalid,
 0 contract defects.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonskill`](symonskill/symonskill.md) | the capability this unit provides — `catalogue.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonskill`](symonskill/symonskill.md), [`tests`](tests/tests.md).
