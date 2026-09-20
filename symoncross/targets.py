@@ -103,8 +103,23 @@ BITBAKE_PATHS: tuple[str, ...] = (
 # The acquired trees live on the build host, read-only (§3.1a), which on this machine is the
 # sandbox. Overridable, like DIST_ROOT and SOURCE_ROOT above, because a path this specific is a
 # property of one machine.
-OE_BUILD_DIR = Path(os.environ.get("SYM_CROSS_OE_BUILD_DIR",
-                                   "/home/google/SymonSaysLLC/Projects/yocto"))
+#
+# WHICH tree, and why not the obvious one. Two candidates sit side by side on the sandbox:
+#
+#   Projects/yocto                     a build area - sstate-cache, downloads, layers - but its
+#                                      checkouts are oe-core 70dc15941d (2026-08-24) and bitbake  # gate-allow: no-august — a checkout date quoted as the reason this tree is refused
+#                                      cff3be6f (2026-07-19). August material, which §3.2 excludes.
+#   Projects/symoneural-bootstrap-master   layers only, and its checkouts are oe-core fe7a24bc67
+#                                      and bitbake 046a90b0e - EXACTLY the revisions
+#                                      SymonSaySource/build/pins records as intended.
+#
+# The pins settle it in their own words: "the project's own copy of its build stack should BE
+# the build stack, not a stale souvenir", authority "Garrett decision (overnight Phase 8): match
+# the stack in use". So the pinned stack is the build stack and the souvenir is not, however
+# much more like a build directory the souvenir looks.
+OE_BUILD_DIR = Path(os.environ.get(
+    "SYM_CROSS_OE_BUILD_DIR",
+    "/home/google/SymonSaysLLC/Projects/symoneural-bootstrap-master"))
 
 DARWIN_BUNDLE = Path(
     os.environ.get("SYM_CROSS_DARWIN_BUNDLE",

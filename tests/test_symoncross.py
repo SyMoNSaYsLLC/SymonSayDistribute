@@ -614,3 +614,49 @@ def test_the_build_directory_is_configurable_like_the_other_roots():
     finally:
         del os.environ["SYM_CROSS_OE_BUILD_DIR"]
         importlib.reload(X)
+
+
+def test_the_build_stack_is_the_one_the_pins_name():
+    """OE_BUILD_DIR must resolve to the tree SymonSaySource actually pins, not the one that
+    looks most like a build directory.
+
+    Two candidates sit side by side on the sandbox. `Projects/yocto` has sstate-cache and
+    downloads and is the obvious guess; its checkouts are stale and excluded by §3.2 — see the
+    comment below for the measured dates. `symoneural-bootstrap-master` is layers only, and its
+    checkouts are exactly the revisions the pins record.
+
+    The pins settle it in their own words: "the project's own copy of its build stack should BE
+    the build stack, not a stale souvenir". This test fails if the default ever drifts back to
+    the souvenir, which it did once, on 2026-09-20, by my hand.
+    """
+    # rejected: oe-core 70dc15941d (2026-08-24), bitbake cff3be6f  # gate-allow: no-august — checkout dates quoted as the reason the tree is refused
+    import json, subprocess
+    pins = Path("/mnt/SymonSaySource/build/pins")
+    if not pins.is_dir():
+        pytest.skip("SymonSaySource/build is not checked out on this host")
+    for comp in ("openembedded-core", "bitbake"):
+        pin_file = pins / f"{comp}.json"
+        if not pin_file.is_file():
+            pytest.skip(f"no pin for {comp}")
+        want = json.load(open(pin_file))["intended_revision"]
+        tree = X.OE_BUILD_DIR / comp
+        if not (tree / ".git").exists():
+            pytest.skip(f"{tree} is not a checkout on this host")
+        got = subprocess.run(["git", "-C", str(tree), "rev-parse", "HEAD"],
+                             capture_output=True, text=True, timeout=30).stdout.strip()
+        assert got == want, (
+            f"{comp}: OE_BUILD_DIR points at {X.OE_BUILD_DIR}, whose HEAD is {got[:12]}, "
+            f"but the pin records {want[:12]}")
+
+
+def test_the_build_stack_is_not_august_material():
+    """§3.2 bars material from the month that predates the fresh start. The rejected candidate's
+    checkouts fall in it, which is half the reason the pinned stack wins."""
+    # asserts HEAD is not in 2026-08  # gate-allow: no-august — the guard names the month to refuse it
+    import subprocess
+    tree = X.OE_BUILD_DIR / "openembedded-core"
+    if not (tree / ".git").exists():
+        pytest.skip("not a checkout on this host")
+    when = subprocess.run(["git", "-C", str(tree), "log", "-1", "--format=%ci"],
+                          capture_output=True, text=True, timeout=30).stdout.strip()
+    assert not when.startswith("2026-08"), f"{tree} HEAD is dated {when}"  # gate-allow: no-august — this IS the guard

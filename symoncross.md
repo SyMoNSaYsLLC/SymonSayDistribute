@@ -263,14 +263,25 @@ blockers, all measured:
 |---|---|
 | No cross compiler | `shutil.which` returns `None` for `x86_64-w64-mingw32-gcc`, `x86_64-w64-mingw32-g++` and `i686-w64-mingw32-gcc`; the package query returns rc=1 with nothing installed |
 | The build-and-integration tool is not on PATH | `which` returns `None`. Four copies exist on disk and are reported; three of them sit on the sandbox device |
-| ~~No build directory~~ — **corrected 2026-09-20** | This row measured `/yocto`, which was the wrong path and no longer exists at all. The build area is on the sandbox: `/home/google/SymonSaysLLC/Projects/yocto`, 28 entries, carrying `openembedded-core`, `bitbake`, `meta-openembedded`, `meta-symoneural`, `meta-symoneural-bsp`, `downloads` and `sstate-cache`. **This blocker is withdrawn**; the other three stand |
+| ~~No build directory~~ — **corrected 2026-09-20** | This row measured `/yocto`, a path settled obsolete and since removed. The build stack is `Projects/symoneural-bootstrap-master`, whose `openembedded-core` is `fe7a24bc6711` and `bitbake` is `046a90b0e9b7` — **exactly** the revisions `SymonSaySource/build/pins` records. **This blocker is withdrawn**; the other three stand |
 | `meta-mingw` is PRESENT, not ACQUIRED | Two copies, both under `~/.cache/oematch/layers`, both with `conf/layer.conf`, both dated 2026-08-21. No pin under `/mnt/SymonSaySource` names it: 108 pins searched, none matched | <!-- gate-allow: no-august — a measured mtime read off disk, quoted as the reason the material is refused, not material built from -->
 
 **Three blockers, not four.** The build-directory row above was wrong: it asked `/yocto`, a path
-settled as obsolete on 2026-09-19 and since removed from fstab. `OE_BUILD_DIR` now reads the
-sandbox, so a windows-target report carries the real directory listing instead of a
-`FileNotFoundError` about a decision. Nothing else changed — no compiler appeared and `meta-mingw`
-is still not acquired.
+settled obsolete on 2026-09-19 and since removed from fstab, so a windows-target report carried a
+`FileNotFoundError` about a decision instead of a fact about the build.
+
+**And the obvious replacement was also wrong.** `Projects/yocto` looks like the build area — it
+has `sstate-cache`, `downloads` and six layers — and its checkouts are `openembedded-core`
+`70dc15941d` (2026-08-24) and `bitbake` `cff3be6f`. August material, which §3.2 excludes. <!-- gate-allow: no-august — a checkout date read off disk, quoted as the reason this tree is refused; removing it would hide why the other tree was chosen -->
+`Projects/symoneural-bootstrap-master` carries layers only, and its checkouts are `fe7a24bc6711`
+and `046a90b0e9b7`: exactly what the pins record. The pins settle it in their own words — *"the
+project's own copy of its build stack should BE the build stack, not a stale souvenir"*, authority
+*"Garrett decision (overnight Phase 8): match the stack in use"*.
+
+So the pinned stack is the build stack, however much more like a build directory the souvenir
+looks. Two tests hold the line: one asserts the default's checkouts equal the recorded
+`intended_revision`, the other that they are not August-dated. Nothing else changed — no compiler
+appeared and `meta-mingw` is still not acquired.
 
 A cache is not a tree the estate owns. Nothing is built from one, and the dating puts both
 copies in material that is not to be used. Acquiring `meta-mingw` — recording its commit, its
