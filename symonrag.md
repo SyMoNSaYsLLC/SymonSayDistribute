@@ -108,3 +108,16 @@ intact, a foreign schema is refused by name, and indexing outside the permitted 
 ## Releases
 
 Tagged `symonrag/v<version>`.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`symonrag`](symonrag/symonrag.md) | the capability this unit provides — `chunk.py`, `index.py` |
+| [`tests`](tests/tests.md) | what proves this unit does what it says — 1 test file(s) |
+
+## Where this leads
+
+Onward, in the order the code runs: [`symonrag`](symonrag/symonrag.md), [`tests`](tests/tests.md).
