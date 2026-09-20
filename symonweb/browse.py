@@ -66,6 +66,17 @@ def drivers() -> list[dict[str, Any]]:
     Version is NOT collected by running the binary. `thorium-shell --version` launches a
     browser and waits — it printed a DevTools websocket and hung for two minutes. A probe that
     can start a browser to answer a question about itself is not a probe.
+
+    CORRECTED 2026-09-20: that reason is true of the BROWSER and false of the DRIVER.
+    `/opt/chromium.org/thorium/chromedriver --version` returned
+    `ChromeDriver 138.0.7204.303 (536d2fef…)` immediately, rc=0, launching nothing. So the
+    version here is readable and the reason it is not read is no longer the one written above.
+
+    The real reason is §3.1b-iii and it is a GAP, not a decision: none of the 108 pins in
+    SymonSaySource records a browser driver, a Chromium or a Thorium, so there is nothing to
+    compare a version TO. Reading one and asserting it against nothing would be theatre.
+    Recorded in symonweb.md under "The version gap"; closed by a pin, after which this returns
+    a version and a test fails on drift the way board and symonprobe now do.
     """
     out = []
     seen: set[str] = set()
