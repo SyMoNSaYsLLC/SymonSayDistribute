@@ -44,3 +44,20 @@ into the caller.
 ## Releases
 
 This branch cuts its own releases, tagged `skills/v<version>`.
+
+## Directories
+
+Every directory below, what is in it, and the document that carries it.
+
+| Directory | Holds |
+|---|---|
+| [`branch-place`](branch-place/branch-place.md) | a grouping directory — `scripts` |
+| [`copyleft-trace`](copyleft-trace/copyleft-trace.md) | a grouping directory — `scripts` |
+| [`disk-identity`](disk-identity/disk-identity.md) | a grouping directory — `scripts` |
+| [`estate-verify`](estate-verify/estate-verify.md) | a grouping directory — `scripts` |
+| [`placement-triage`](placement-triage/placement-triage.md) | a grouping directory — `scripts` |
+| [`source-pin`](source-pin/source-pin.md) | a grouping directory — `scripts` |
+
+## Where this leads
+
+Onward, in the order the code runs: [`branch-place`](branch-place/branch-place.md), [`copyleft-trace`](copyleft-trace/copyleft-trace.md), [`disk-identity`](disk-identity/disk-identity.md), [`estate-verify`](estate-verify/estate-verify.md), [`placement-triage`](placement-triage/placement-triage.md), [`source-pin`](source-pin/source-pin.md).
