@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: LicenseRef-SymonSaysLLC-Proprietary-1.0
+# Copyright 2026 SymonSaysLLC
+# SyMoNsAyLeaRn — SyMoNeuRaL, a subdivision of SymonSaysLLC. Terms: see LICENSE.
+#
+# symoneural-github-mcp — launch the pinned GitHub MCP server over stdio for the coder.
+#
+# WHAT THIS IS
+#   The one executable the MCP client runs. Claude Code registers it at user scope as the
+#   stdio server "symoneural-github"; the Codex configuration names the same command. It
+#   owns the credential at execution time so the model never sees it, and it refuses to
+#   start when the binary on disk is not the one pin.json records.
+#
+# WHAT IT NEVER DOES
+#   - print, log, or place a token on argv: the server reads it from its own environment
+#   - download, install or "update" anything: acquire.sh does that, against the pin
+#   - enable a repository-, organisation- or history-level write unless named by the operator
+#
+# KNOBS (environment of the client, all optional, none secret)
+#   SYM_GITHUB_ACCOUNT    gh account to act as          default SyMoNSaYsLLC
+#   SYM_GITHUB_READ_ONLY  1 = --read-only                default 0
+#   SYM_GITHUB_TOOLSETS   comma list                      default below
+#   SYM_GITHUB_EXCLUDE    comma list; empty string lifts every exclusion   default below
+#   SYM_GITHUB_HOST       --gh-host for a GHES/GHEC-DR hostname            default unset (github.com)
+#   SYM_GITHUB_INSTALL    where acquire.sh installed the binary            default ~/.local/share/symoneural/github-mcp-server
+set -euo pipefail
+
+HERE=$(cd -- "$(dirname -- "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+PIN=${SYM_GITHUB_PIN:-$HERE/pin.json}
+INST=${SYM_GITHUB_INSTALL:-${HOME:?}/.local/share/symoneural/github-mcp-server}
+
+die() { echo "symoneural-github-mcp: $1" >&2; exit "${2:-1}"; }
+
+[ -r "$PIN" ] || die "pin missing: $PIN" 78
+read -r TAG COMMIT BIN_SHA < <(python3 - "$PIN" <<'PY'
+import json, sys
+p = json.load(open(sys.argv[1]))
+print(p["nearest_tag"], p["commit_sha"], p["release"]["binary_sha256"])
+PY
+)
+BIN="$INST/$TAG/github-mcp-server"
+[ -x "$BIN" ] || die "binary not installed at $BIN; run acquire.sh, which verifies it against the pin" 127
+
+# §3.1b-iii: a component that invokes a program it does not own asserts that program's
+# version against the recorded pin. The bytes and the self-reported commit must both agree.
+ACTUAL_SHA=$(sha256sum "$BIN" | cut -d' ' -f1)
+[ "$ACTUAL_SHA" = "$BIN_SHA" ] || die "binary sha256 $ACTUAL_SHA is not the pinned $BIN_SHA; refusing to run an unpinned server" 70
+ACTUAL_COMMIT=$("$BIN" --version 2>/dev/null | awk '/^Commit:/{print $2}')
+[ "$ACTUAL_COMMIT" = "$COMMIT" ] || die "binary reports commit ${ACTUAL_COMMIT:-none}; pin says $COMMIT" 70
+
+# Identity. gh keeps the credential in the OS keyring, where `gh auth login` put it. Any
+# account used here must be logged in to gh; no other store is consulted, on purpose.
+ACCOUNT=${SYM_GITHUB_ACCOUNT:-SyMoNSaYsLLC}
+if ! TOKEN=$(gh auth token --user "$ACCOUNT" 2>/dev/null) || [ -z "$TOKEN" ]; then
+  die "no gh credential for GitHub account '$ACCOUNT'; only the owner can add one (gh auth login, browser)" 78
+fi
+
+# Tool surface. Reads wherever the account is authorised. Writes: issues, pull requests,
+# reviews, branches, single-file commits. Off until named: anything that deletes, merges,
+# force-pushes many files, creates or forks repositories, changes rulesets or custom
+# properties, triggers workflows, edits projects or labels, stars, publishes gists, or hands
+# work to another vendor's hosted model (§3.5).
+TOOLSETS=${SYM_GITHUB_TOOLSETS:-context,repos,issues,pull_requests,actions,code_security,secret_protection,dependabot,security_advisories,orgs,users,git,labels,governance,code_quality,discussions}
+EXCLUDE=${SYM_GITHUB_EXCLUDE-delete_file,push_files,merge_pull_request,create_repository,fork_repository,create_repository_ruleset,custom_properties_write,actions_run_trigger,projects_write,label_write,discussion_comment_write,assign_copilot_to_issue,assign_copilot_to_issue_with_intent,request_copilot_review,star_repository,unstar_repository,create_gist,update_gist}
+ARGS=(stdio --toolsets "$TOOLSETS")
+[ -n "$EXCLUDE" ] && ARGS+=(--exclude-tools "$EXCLUDE")
+[ "${SYM_GITHUB_READ_ONLY:-0}" = 1 ] && ARGS+=(--read-only)
+[ -n "${SYM_GITHUB_HOST:-}" ] && ARGS+=(--gh-host "$SYM_GITHUB_HOST")
+
+# The credential travels only in the child's environment: never argv (/proc shows argv to
+# every user; environ only to this uid), never a file, never stdout or stderr.
+GITHUB_PERSONAL_ACCESS_TOKEN="$TOKEN" exec "$BIN" "${ARGS[@]}" "$@"

@@ -1,0 +1,32 @@
+{
+  "schema": "symoneural-acquisition/1",
+  "component": "github-mcp-server",
+  "classification": "DEPENDENCY",
+  "upstream_url": "https://github.com/github/github-mcp-server",
+  "commit_sha": "85598ba6e1256f7ebf4867b95d63b833c4549264",
+  "nearest_tag": "v1.12.2",
+  "declared_license": "MIT",
+  "license_md5": "f18975c8ab63090d23782cb7da010a25",
+  "license_sha256": "9e48ecfa18e2b15169746a3c97beda4d1d6c6796097038498ca434ca7e0ccd44",
+  "copyright": "Copyright (c) 2025 GitHub",
+  "acquired": "2026-09-20",
+  "release": {
+    "repo": "github/github-mcp-server",
+    "tag_object_sha": "c4e03a622ff9d9e62b251130c89899d4f1081240",
+    "published_at": "2026-09-16T10:58:24Z",
+    "asset": "github-mcp-server_Linux_x86_64.tar.gz",
+    "asset_sha256": "95843162759da2c31dde082dd145be35db82164594796c294414b69790c2290e",
+    "checksums_file": "github-mcp-server_1.12.2_checksums.txt",
+    "binary_sha256": "b7a96bf79c68c0d4d0cdb5713e9ff36a1730b87ee3ae710e2e6189f398d7c1aa",
+    "binary_build_date": "2026-09-16T10:54:21Z",
+    "container_image": "ghcr.io/github/github-mcp-server:v1.12.2",
+    "container_linux_amd64_digest": "sha256:a44e77b9c9003ed0e228716d118aa4ce9f3418dce30fe2340c71553164bd96f0",
+    "container_used": false
+  },
+  "build_from_source": {
+    "go_required_by_go_mod": "1.25.12",
+    "go_on_host": "1.24.4 (/usr/lib/go-1.24)",
+    "state": "NOT BUILT: host toolchain is below the go.mod requirement; GOTOOLCHAIN=auto would fetch a toolchain silently and is not used. The pinned official release asset is what runs. Building from the pinned commit is the next step toward on-disk and needs a pinned Go >= 1.25.12 first."
+  },
+  "installed_at": "$HOME/.local/share/symoneural/github-mcp-server/v1.12.2/"
+}
